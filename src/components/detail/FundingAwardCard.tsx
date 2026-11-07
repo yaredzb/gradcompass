@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Edit2, Trash2, CheckCircle2, ShieldCheck, Banknote, HelpCircle } from 'lucide-react';
 import { FundingOpportunity, Program, FundingIntakeCycle, IntakeInfo } from '../../types';
 import { formatFundingCoverage, formatMonthlyStipend } from './formatters';
 import { DetailField, MoreDetails, SourceLink, formatDate, readableLabel } from './DetailPrimitives';
+import { ConfirmModal } from '../ConfirmModal';
 
 interface FundingAwardCardProps {
   fund: FundingOpportunity;
   program: Program;
   onEditFunding: (fund: FundingOpportunity) => void;
-  onDeleteFunding: (id: string) => void;
+  onDeleteFunding: (id: string) => void | Promise<void>;
 }
 
 function FundingCycle({
@@ -82,13 +83,32 @@ export const FundingAwardCard: React.FC<FundingAwardCardProps> = ({
   onEditFunding,
   onDeleteFunding,
 }) => {
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const competitiveness = fund.competitiveness;
   const isEligible =
     fund.ethiopianEligibility === 'OpenToEthiopian' ||
     fund.ethiopianEligibility === 'EthiopiaSpecific';
 
+  const handleConfirmDelete = async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDeleteFunding(fund.id);
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      setIsDeleteModalOpen(false);
+      setDeleteError(error instanceof Error ? error.message : 'Could not delete award.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <article className="detail-award-card">
+      {deleteError && <p role="alert" className="p-3 text-sm text-red-700 dark:text-red-200">{deleteError}</p>}
       <div className="detail-award-top">
         <div className="detail-award-header-info">
           <div className="detail-award-tags">
@@ -126,11 +146,8 @@ export const FundingAwardCard: React.FC<FundingAwardCardProps> = ({
             <Edit2 size={14} />
           </button>
           <button
-            className="detail-icon-button hover:text-red-600"
-            onClick={() => {
-              if (window.confirm('Delete funding award "' + fund.officialName + '"?'))
-                onDeleteFunding(fund.id);
-            }}
+            className="detail-icon-button hover:text-red-600 dark:hover:text-red-400"
+            onClick={() => setIsDeleteModalOpen(true)}
             title="Delete award"
             aria-label={'Delete ' + fund.officialName}
           >
@@ -138,6 +155,18 @@ export const FundingAwardCard: React.FC<FundingAwardCardProps> = ({
           </button>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        title="Delete Award?"
+        message={`Are you sure you want to delete "${fund.officialName}"?`}
+        confirmLabel="Move to Trash"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        isLoading={isDeleting}
+        onCancel={() => { if (!isDeleting) setIsDeleteModalOpen(false); }}
+      />
 
       {/* Hero Stipend & Coverage Banner */}
       <div className="detail-award-metrics-banner">

@@ -153,7 +153,7 @@ export const INITIAL_DEMO_FUNDING: FundingOpportunity[] = [
     springFunding: {
       term: 'Spring 2028',
       status: 'NotOffered',
-      workflow: 'NotOffered' as any,
+      workflow: 'Unclear',
       workflowNotes: 'Spring intake is not offered for this degree or fellowship.',
     },
     intakeNotes: 'Full-ride fellowship awarded for 24 months subject to satisfactory academic progress (minimum 3.0/4.0 semester GPA).',
@@ -191,7 +191,7 @@ export const INITIAL_DEMO_FUNDING: FundingOpportunity[] = [
     springFunding: {
       term: 'Spring 2028',
       status: 'NotOffered',
-      workflow: 'NotOffered' as any,
+      workflow: 'Unclear',
       workflowNotes: 'Funding not offered for this intake. Spring program degree applicants must be self-funded or sponsored externally.',
     },
     intakeNotes: 'Spring degree admission is offered, but Presidential Fellowship funding is strictly restricted to Fall intake.',

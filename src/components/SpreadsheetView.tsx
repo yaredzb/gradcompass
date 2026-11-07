@@ -18,7 +18,11 @@ export const SpreadsheetView: React.FC<SpreadsheetViewProps> = ({
     <div
       className="w-full overflow-x-auto bg-white dark:bg-[#1E293B] rounded-xl
         border border-[#E6DFD5] dark:border-[#334155] shadow-xs"
+      style={{ WebkitOverflowScrolling: 'touch' }}
     >
+      <div className="sm:hidden px-3 py-1.5 bg-[#F4EFE6]/70 dark:bg-[#0F172A]/70 border-b border-[#E6DFD5] dark:border-[#334155] text-[11px] text-slate-500 dark:text-slate-400 text-center font-medium">
+        ← Swipe horizontally to view full table columns →
+      </div>
       <table className="w-full text-left text-xs border-collapse">
         <thead>
           <tr

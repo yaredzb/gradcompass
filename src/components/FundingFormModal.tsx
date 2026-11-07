@@ -17,7 +17,7 @@ import { AwardNotesSection } from './funding-form/AwardNotesSection';
 export interface FundingFormModalProps {
   program: Program;
   initialFunding?: FundingOpportunity | null;
-  onSave: (funding: FundingOpportunity) => void;
+  onSave: (funding: FundingOpportunity) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -27,6 +27,8 @@ export const FundingFormModal: React.FC<FundingFormModalProps> = ({
   onSave,
   onClose,
 }) => {
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const isEditing = !!initialFunding;
 
   // Award Details
@@ -138,16 +140,17 @@ export const FundingFormModal: React.FC<FundingFormModalProps> = ({
       new Date().toISOString().split('T')[0]
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
 
     if (!officialName.trim()) {
-      alert('Please enter the official scholarship or funding name.');
+      setSaveError('Please enter the official scholarship or funding name.');
       return;
     }
 
     const funding: FundingOpportunity = {
-      id: initialFunding?.id || `funding-${Date.now()}`,
+      id: initialFunding?.id || crypto.randomUUID(),
       programId: program.id,
       officialName: officialName.trim(),
       officialLink: officialLink.trim() || 'https://example.org',
@@ -216,8 +219,16 @@ export const FundingFormModal: React.FC<FundingFormModalProps> = ({
       updatedAt: new Date().toISOString(),
     };
 
-    onSave(funding);
-    onClose();
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await onSave(funding);
+      onClose();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Could not save. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -247,6 +258,7 @@ export const FundingFormModal: React.FC<FundingFormModalProps> = ({
           </div>
           <button
             onClick={onClose}
+              disabled={isSaving}
             className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900
               dark:hover:text-white hover:bg-[#F4EFE6] dark:hover:bg-[#0F172A]"
           >
@@ -259,6 +271,7 @@ export const FundingFormModal: React.FC<FundingFormModalProps> = ({
           onSubmit={handleSubmit}
           className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 text-xs sm:text-sm"
         >
+          {saveError && <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-950/30 p-3 text-sm text-red-700 dark:text-red-200">{saveError}</p>}
           {/* Section 1: Basic Funding Identification */}
           <AwardDetailsSection
             officialName={officialName}
@@ -353,6 +366,7 @@ export const FundingFormModal: React.FC<FundingFormModalProps> = ({
             <button
               type="button"
               onClick={onClose}
+              disabled={isSaving}
               className="px-4 py-2 text-xs sm:text-sm font-medium rounded-lg
                 border border-[#E6DFD5] dark:border-[#334155] hover:bg-[#F4EFE6]
                 dark:hover:bg-[#0F172A] transition-colors"
@@ -361,11 +375,12 @@ export const FundingFormModal: React.FC<FundingFormModalProps> = ({
             </button>
             <button
               type="submit"
+              disabled={isSaving}
               className="px-5 py-2 text-xs sm:text-sm font-semibold rounded-lg
                 bg-slate-900 dark:bg-white text-white dark:text-slate-900
                 hover:opacity-90 transition-opacity"
             >
-              {isEditing ? 'Save Changes' : 'Record Award'}
+              {isSaving ? 'Saving…' : isEditing ? 'Save Changes' : 'Record Award'}
             </button>
           </div>
         </form>

@@ -28,7 +28,7 @@ export interface ProgramFormModalProps {
   initialProgram?: Program | null;
   existingUniversities: string[];
   existingFields: string[];
-  onSave: (program: Program) => void;
+  onSave: (program: Program) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -39,6 +39,8 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
   onSave,
   onClose,
 }) => {
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const isEditing = !!initialProgram;
 
   // Basic info
@@ -221,19 +223,20 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
 
   const assignedRegions = getAssignedRegionsForCountries(selectedCountries);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
 
     const finalUniversity = isNewUniversity
       ? customUniversity.trim()
       : university;
     if (!finalUniversity) {
-      alert('Please enter or select a university or consortium.');
+      setSaveError('Please enter or select a university or consortium.');
       return;
     }
 
     if (!officialName.trim()) {
-      alert('Please enter the official program name.');
+      setSaveError('Please enter the official program name.');
       return;
     }
 
@@ -258,7 +261,7 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
     }
 
     const newProgram: Program = {
-      id: initialProgram?.id || `program-${Date.now()}`,
+      id: initialProgram?.id || crypto.randomUUID(),
       officialName: officialName.trim(),
       university: finalUniversity,
       isJointProgram,
@@ -315,8 +318,16 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
       updatedAt: new Date().toISOString(),
     };
 
-    onSave(newProgram);
-    onClose();
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await onSave(newProgram);
+      onClose();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Could not save. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const filteredCountryList = ALL_COUNTRIES.filter((c) =>
@@ -350,6 +361,7 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
           </div>
           <button
             onClick={onClose}
+              disabled={isSaving}
             className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900
               dark:hover:text-white hover:bg-[#F4EFE6] dark:hover:bg-[#0F172A]"
           >
@@ -362,6 +374,7 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
           onSubmit={handleSubmit}
           className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 text-xs sm:text-sm"
         >
+          {saveError && <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-950/30 p-3 text-sm text-red-700 dark:text-red-200">{saveError}</p>}
           {/* Section 1: Institution & Official Name */}
           <IdentificationSection
             officialName={officialName}
@@ -490,6 +503,7 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
             <button
               type="button"
               onClick={onClose}
+              disabled={isSaving}
               className="px-4 py-2 text-xs sm:text-sm font-medium rounded-lg
                 border border-[#E6DFD5] dark:border-[#334155] hover:bg-[#F4EFE6]
                 dark:hover:bg-[#0F172A] transition-colors"
@@ -498,11 +512,12 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
             </button>
             <button
               type="submit"
+              disabled={isSaving}
               className="px-5 py-2 text-xs sm:text-sm font-semibold rounded-lg
                 bg-slate-900 dark:bg-white text-white dark:text-slate-900
                 hover:opacity-90 transition-opacity"
             >
-              {isEditing ? 'Save Changes' : 'Save Program Record'}
+              {isSaving ? 'Saving…' : isEditing ? 'Save Changes' : 'Save Program Record'}
             </button>
           </div>
         </form>

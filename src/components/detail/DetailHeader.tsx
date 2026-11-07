@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, Edit2, Trash2, GraduationCap, CheckCircle2 } from 'lucide-react';
 import { Program } from '../../types';
 import { formatRegionDisplay } from '../../utils/regions';
 import { getDegreeRouteLabel } from './formatters';
 import { SourceLink, readableLabel } from './DetailPrimitives';
+import { ConfirmModal } from '../ConfirmModal';
 
 interface DetailHeaderProps {
   program: Program;
   onBack: () => void;
   onEditProgram: (program: Program) => void;
-  onDeleteProgram: (id: string) => void;
+  onDeleteProgram: (id: string) => void | Promise<void>;
 }
 
 export const DetailHeader: React.FC<DetailHeaderProps> = ({
@@ -18,10 +19,23 @@ export const DetailHeader: React.FC<DetailHeaderProps> = ({
   onEditProgram,
   onDeleteProgram,
 }) => {
-  const handleDelete = () => {
-    if (window.confirm('Delete "' + program.officialName + '" and all attached awards?')) {
-      onDeleteProgram(program.id);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleConfirmDelete = async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDeleteProgram(program.id);
+      setIsDeleteModalOpen(false);
       onBack();
+    } catch (error) {
+      setIsDeleteModalOpen(false);
+      setDeleteError(error instanceof Error ? error.message : 'Could not delete program.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -60,8 +74,8 @@ export const DetailHeader: React.FC<DetailHeaderProps> = ({
             <span>Edit program</span>
           </button>
           <button
-            className="detail-icon-button"
-            onClick={handleDelete}
+            className="detail-icon-button hover:text-red-600 dark:hover:text-red-400"
+            onClick={() => setIsDeleteModalOpen(true)}
             aria-label="Delete program"
             title="Delete program"
           >
@@ -70,6 +84,19 @@ export const DetailHeader: React.FC<DetailHeaderProps> = ({
         </div>
       </div>
 
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        title="Delete Program?"
+        message={`Are you sure you want to delete "${displayName}"?`}
+        confirmLabel="Move to Trash"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        isLoading={isDeleting}
+        onCancel={() => { if (!isDeleting) setIsDeleteModalOpen(false); }}
+      />
+
+      {deleteError && <p role="alert" className="p-3 text-sm text-red-700 dark:text-red-200">{deleteError}</p>}
       <div className="detail-title-block">
         <div className="detail-meta-row">
           <div className="detail-institution-avatar" aria-hidden="true">

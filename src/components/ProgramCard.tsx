@@ -93,7 +93,7 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
     <article
       onClick={() => onOpenDetails(program)}
       className="group cursor-pointer bg-white dark:bg-[#1E293B] border
-        border-[#E6DFD5] dark:border-[#334155] rounded-xl p-5 hover:border-slate-400
+        border-[#E6DFD5] dark:border-[#334155] rounded-xl p-4 sm:p-5 hover:border-slate-400
         dark:hover:border-slate-500 transition-all shadow-xs flex flex-col justify-between"
     >
       <div>
@@ -178,7 +178,7 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
       {/* Footer: Next Deadline & Open Action */}
       <div
         className="mt-3.5 pt-3 border-t border-[#E6DFD5]/70
-          dark:border-[#334155]/70 flex items-center justify-between text-xs
+          dark:border-[#334155]/70 flex flex-wrap items-center justify-between gap-2 text-xs
           text-slate-500 dark:text-slate-400"
       >
         <div className="flex items-center gap-1.5 font-mono">

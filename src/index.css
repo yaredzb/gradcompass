@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --breakpoint-xs: 480px;
+}
+
 @layer base {
   :root {
     --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
@@ -1241,10 +1245,41 @@
     gap: 20px;
   }
   .detail-header-card, .detail-section {
-    padding: 20px;
+    padding: 16px;
+    border-radius: 16px;
   }
   .detail-award-metrics-banner, .detail-funding-cycles-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .detail-toolbar {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .detail-heading {
+    font-size: 20px;
+  }
+  .detail-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .detail-button, .detail-icon-button {
+    min-height: 38px;
+  }
+}
+
+@media (max-width: 480px) {
+  .program-detail {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  .detail-header-card, .detail-section {
+    padding: 14px;
+    border-radius: 14px;
+  }
+  .detail-meta-row {
+    font-size: 12px;
+    gap: 6px 10px;
   }
 }
 

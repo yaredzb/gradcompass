@@ -1,6 +1,0 @@
-{
-  "summary":  "Finalized implementation plan incorporating mobile-first design, single shared Supabase account/database, decoupled intake terms (e.g. Spring 2028) from deadline dates, direct-from-bachelor's PhD entry scope, 'Apply directly to funded position' workflow, scholarship competitiveness sources and years, institution reuse autocomplete, and automatic geopolitical region assignment.",
-  "updatedAt":  "2026-11-07T09:12:07.597418679Z",
-  "requestFeedback":  true,
-  "userFacing":  true
-}

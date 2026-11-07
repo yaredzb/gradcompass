@@ -1,195 +1,136 @@
 import { Program, FundingOpportunity } from '../types';
 import { INITIAL_DEMO_PROGRAMS, INITIAL_DEMO_FUNDING } from '../data/initialDemoRecords';
-import { getSupabaseClient, getStoredAuthUser } from './supabase';
+import { getSupabaseClient, getStoredAuthUser, getStoredSupabaseConfig } from './supabase';
 
 const PROGRAMS_KEY = 'gradsearch_programs_v2';
 const FUNDING_KEY = 'gradsearch_funding_v2';
-
-type Listener = () => void;
-const listeners = new Set<Listener>();
-
-function notify() {
-  listeners.forEach((l) => l());
-}
-
-export function subscribeToStore(listener: Listener): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-// In-memory cache
+const listeners = new Set<() => void>();
 let cachedPrograms: Program[] | null = null;
 let cachedFunding: FundingOpportunity[] | null = null;
+let storeContext = '';
+let storeVersion = 0;
 
-function loadLocalPrograms(): Program[] {
-  try {
-    const raw = localStorage.getItem(PROGRAMS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        // Ensure demo records have application timeline start dates
-        return parsed.map((p) => {
-          if (p.id === 'demo-program-1' && !p.fallIntake?.startDate) {
-            return {
-              ...p,
-              fallIntake: {
-                ...p.fallIntake,
-                startDate: '2026-10-15',
-                endDate: p.fallIntake?.deadlineDate || '2027-01-15',
-              },
-            };
-          }
-          if (p.id === 'demo-program-2' && !p.fallIntake?.startDate) {
-            return {
-              ...p,
-              fallIntake: {
-                ...p.fallIntake,
-                startDate: '2026-09-01',
-                endDate: p.fallIntake?.deadlineDate || '2026-12-01',
-              },
-              springIntake: {
-                ...p.springIntake,
-                startDate: '2027-05-01',
-                endDate: p.springIntake?.deadlineDate || '2027-09-15',
-              },
-            };
-          }
-          return p;
-        });
-      }
-    }
-  } catch (e) {
-    console.error('Failed to load local programs:', e);
-  }
-  // Initialize with initial demo records
-  localStorage.setItem(PROGRAMS_KEY, JSON.stringify(INITIAL_DEMO_PROGRAMS));
-  return INITIAL_DEMO_PROGRAMS;
+export function clearStoreCache() {
+  cachedPrograms = null;
+  cachedFunding = null;
+  storeContext = '';
+  storeVersion++;
 }
 
-function loadLocalFunding(): FundingOpportunity[] {
-  try {
-    const raw = localStorage.getItem(FUNDING_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-  } catch (e) {
-    console.error('Failed to load local funding:', e);
-  }
-  // Initialize with initial demo records
-  localStorage.setItem(FUNDING_KEY, JSON.stringify(INITIAL_DEMO_FUNDING));
-  return INITIAL_DEMO_FUNDING;
-}
-
-export async function fetchAllData(): Promise<{
-  programs: Program[];
-  funding: FundingOpportunity[];
-}> {
+function context() {
   const user = getStoredAuthUser();
-  if (!user) {
-    // Gated: signed-out visitors cannot view records
-    return { programs: [], funding: [] };
+  const config = getStoredSupabaseConfig();
+  const next = config.url ? config.url + ':' + (user?.id || '') : 'local-demo';
+  if (storeContext !== next) {
+    clearStoreCache();
+    storeContext = next;
   }
+  return storeVersion;
+}
 
-  const supabase = getSupabaseClient();
-  if (supabase) {
-    try {
-      const [programsRes, fundingRes] = await Promise.all([
-        supabase.from('programs').select('*'),
-        supabase.from('funding_opportunities').select('*'),
-      ]);
+function requireUser() {
+  context();
+  const user = getStoredAuthUser();
+  if (!user) throw new Error('Please sign in to access saved records.');
+  return user;
+}
 
-      if (!programsRes.error && programsRes.data && programsRes.data.length > 0) {
-        cachedPrograms = programsRes.data.map((row) => ({
-          ...row,
-          campusCities: row.campus_cities || row.campusCities || [],
-          assignedRegions: row.assigned_regions || row.assignedRegions || [],
+function checkSession(version: number) {
+  context();
+  if (version !== storeVersion) throw new Error('Your session changed. Please try again.');
+}
+
+function databaseError(operation: string, error: { message: string } | null) {
+  if (error) throw new Error(operation + ': ' + error.message);
+}
+
+function notify() { listeners.forEach(listener => listener()); }
+
+export function subscribeToStore(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+
+function readLocal<T>(key: string, initial: T[]): T[] {
+  const raw = localStorage.getItem(key);
+  if (raw !== null) {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) throw new Error('Saved local data is invalid. It has not been replaced.');
+    return parsed;
+  }
+  const records = structuredClone(initial);
+  localStorage.setItem(key, JSON.stringify(records));
+  return records;
+}
+
+function loadLocal() {
+  cachedPrograms ??= readLocal(PROGRAMS_KEY, INITIAL_DEMO_PROGRAMS);
+  cachedFunding ??= readLocal(FUNDING_KEY, INITIAL_DEMO_FUNDING.filter(
+    fund => cachedPrograms!.some(program => program.id === fund.programId)
+  ));
+}
+
+function programFromRow(row: any): Program {
+  return {
+          id: row.id,
+          officialName: row.official_name ?? row.officialName ?? '',
+          university: row.university ?? '',
+          isJointProgram: row.is_joint_program ?? row.isJointProgram ?? false,
           countries: row.countries || [],
+          assignedRegions: row.assigned_regions || row.assignedRegions || [],
+          campusCities: row.campus_cities || row.campusCities || [],
+          officialLink: row.official_link ?? row.officialLink ?? '',
           fields: row.fields || [],
+          degreeRoute: row.degree_route || row.degreeRoute || 'Unclear',
+          directPhDEntry: row.direct_phd_entry || row.directPhDEntry || 'Unclear',
+          programStructure: row.program_structure || row.programStructure || 'Unclear',
+          applyBeforeGraduation: row.apply_before_graduation || row.applyBeforeGraduation || 'Unclear',
+          applyBeforeGraduationNotes: row.apply_before_graduation_notes ?? row.applyBeforeGraduationNotes ?? '',
+          minimumGrades: row.minimum_grades ?? row.minimumGrades ?? '',
+          gradingScale: row.grading_scale ?? row.gradingScale ?? '',
+          academicPrerequisites: row.academic_prerequisites ?? row.academicPrerequisites ?? '',
+          keyRequirements: row.key_requirements ?? row.keyRequirements ?? '',
+          mediumOfInstruction: row.medium_of_instruction || row.mediumOfInstruction || 'Unclear',
+          instructionLanguageDetails: row.instruction_language_details ?? row.instructionLanguageDetails ?? '',
+          englishProficiency: row.english_proficiency || row.englishProficiency || { acceptedTests: [] },
           selectionSteps: row.selection_steps || row.selectionSteps || [],
+          admissionCompetitiveness: row.admission_competitiveness || row.admissionCompetitiveness || {},
           fallIntake: row.fall_intake || row.fallIntake || {},
           springIntake: row.spring_intake || row.springIntake || {},
-          englishProficiency: row.english_proficiency || row.englishProficiency || { acceptedTests: [] },
-          admissionCompetitiveness: row.admission_competitiveness || row.admissionCompetitiveness || {},
-        }));
-      }
-
-      if (!fundingRes.error && fundingRes.data && fundingRes.data.length > 0) {
-        cachedFunding = fundingRes.data.map((row) => ({
-          ...row,
-          programId: row.program_id || row.programId,
-          monthlyStipend: row.monthly_stipend || row.monthlyStipend || {},
-          fallFunding: row.fall_funding || row.fallFunding || {},
-          springFunding: row.spring_funding || row.springFunding || {},
-          competitiveness: row.competitiveness || {},
-        }));
-      }
-    } catch (e) {
-      console.warn('Supabase fetch failed, falling back to local persistent store:', e);
-    }
-  }
-
-  if (!cachedPrograms) {
-    cachedPrograms = loadLocalPrograms();
-  }
-  if (!cachedFunding) {
-    cachedFunding = loadLocalFunding();
-  }
-
-  return {
-    programs: cachedPrograms,
-    funding: cachedFunding,
+          informationLastChecked: row.information_last_checked || row.informationLastChecked || '',
+          createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+          updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
   };
 }
 
-export function getProgramsSync(): Program[] {
-  const user = getStoredAuthUser();
-  if (!user) return [];
-  if (!cachedPrograms) {
-    cachedPrograms = loadLocalPrograms();
-  }
-  return cachedPrograms;
+function fundingFromRow(row: any): FundingOpportunity {
+  return {
+          id: row.id,
+          programId: row.program_id || row.programId,
+          officialName: row.official_name ?? row.officialName ?? '',
+          officialLink: row.official_link ?? row.officialLink ?? '',
+          fundingType: row.funding_type || row.fundingType || 'Unclear',
+          coverage: row.coverage || 'Unclear',
+          ethiopianEligibility: row.ethiopian_eligibility || row.ethiopianEligibility || 'Unclear',
+          monthlyStipend: row.monthly_stipend || row.monthlyStipend || {
+            isZeroConfirmed: false,
+            currency: 'USD',
+            grossOrNet: 'Gross',
+            isUnpublished: false,
+          },
+          fallFunding: row.fall_funding || row.fallFunding || {},
+          springFunding: row.spring_funding || row.springFunding || {},
+          intakeNotes: row.intake_notes ?? row.intakeNotes ?? '',
+          competitiveness: row.competitiveness || {},
+          visaAndWorkNotes: row.visa_and_work_notes ?? row.visaAndWorkNotes ?? '',
+          informationLastChecked: row.information_last_checked || row.informationLastChecked || '',
+          createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+          updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
+  };
 }
 
-export function getFundingSync(): FundingOpportunity[] {
-  const user = getStoredAuthUser();
-  if (!user) return [];
-  if (!cachedFunding) {
-    cachedFunding = loadLocalFunding();
-  }
-  return cachedFunding;
-}
-
-export async function saveProgram(program: Program): Promise<void> {
-  const user = getStoredAuthUser();
-  if (!user) {
-    throw new Error('Unauthorized: Please sign in to save records');
-  }
-
-  const current = getProgramsSync();
-  const index = current.findIndex((p) => p.id === program.id);
-  let updated: Program[];
-
-  if (index >= 0) {
-    updated = [...current];
-    updated[index] = { ...program, updatedAt: new Date().toISOString() };
-  } else {
-    updated = [{ ...program, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, ...current];
-  }
-
-  cachedPrograms = updated;
-  localStorage.setItem(PROGRAMS_KEY, JSON.stringify(updated));
-  notify();
-
-  // Async sync to Supabase if available
-  const supabase = getSupabaseClient();
-  if (supabase) {
-    try {
-      await supabase.from('programs').upsert({
+function programToRow(program: Program) {
+  return {
         id: program.id,
         official_name: program.officialName,
         university: program.university,
@@ -216,69 +157,13 @@ export async function saveProgram(program: Program): Promise<void> {
         fall_intake: program.fallIntake,
         spring_intake: program.springIntake,
         information_last_checked: program.informationLastChecked,
+        created_at: program.createdAt || new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      });
-    } catch (err) {
-      console.warn('Supabase program upsert error:', err);
-    }
-  }
+  };
 }
 
-export async function deleteProgram(id: string): Promise<void> {
-  const user = getStoredAuthUser();
-  if (!user) {
-    throw new Error('Unauthorized: Please sign in to delete records');
-  }
-
-  const current = getProgramsSync();
-  const updated = current.filter((p) => p.id !== id);
-  cachedPrograms = updated;
-  localStorage.setItem(PROGRAMS_KEY, JSON.stringify(updated));
-
-  // Also delete associated funding opportunities
-  const fundingCurrent = getFundingSync();
-  const fundingUpdated = fundingCurrent.filter((f) => f.programId !== id);
-  cachedFunding = fundingUpdated;
-  localStorage.setItem(FUNDING_KEY, JSON.stringify(fundingUpdated));
-
-  notify();
-
-  const supabase = getSupabaseClient();
-  if (supabase) {
-    try {
-      await supabase.from('funding_opportunities').delete().eq('program_id', id);
-      await supabase.from('programs').delete().eq('id', id);
-    } catch (err) {
-      console.warn('Supabase program delete error:', err);
-    }
-  }
-}
-
-export async function saveFundingOpportunity(funding: FundingOpportunity): Promise<void> {
-  const user = getStoredAuthUser();
-  if (!user) {
-    throw new Error('Unauthorized: Please sign in to save funding records');
-  }
-
-  const current = getFundingSync();
-  const index = current.findIndex((f) => f.id === funding.id);
-  let updated: FundingOpportunity[];
-
-  if (index >= 0) {
-    updated = [...current];
-    updated[index] = { ...funding, updatedAt: new Date().toISOString() };
-  } else {
-    updated = [{ ...funding, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, ...current];
-  }
-
-  cachedFunding = updated;
-  localStorage.setItem(FUNDING_KEY, JSON.stringify(updated));
-  notify();
-
-  const supabase = getSupabaseClient();
-  if (supabase) {
-    try {
-      await supabase.from('funding_opportunities').upsert({
+function fundingToRow(funding: FundingOpportunity) {
+  return {
         id: funding.id,
         program_id: funding.programId,
         official_name: funding.officialName,
@@ -293,40 +178,149 @@ export async function saveFundingOpportunity(funding: FundingOpportunity): Promi
         competitiveness: funding.competitiveness,
         visa_and_work_notes: funding.visaAndWorkNotes,
         information_last_checked: funding.informationLastChecked,
+        created_at: funding.createdAt || new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      });
-    } catch (err) {
-      console.warn('Supabase funding upsert error:', err);
-    }
+  };
+}
+
+export async function fetchAllData(): Promise<{ programs: Program[]; funding: FundingOpportunity[] }> {
+  context();
+  if (!getStoredAuthUser()) return { programs: [], funding: [] };
+  const version = storeVersion;
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { data: membership, error: memberError } = await supabase
+      .from('team_members').select('user_id').eq('user_id', getStoredAuthUser()!.id).maybeSingle();
+    databaseError('Could not verify team access', memberError);
+    if (!membership) throw new Error('Your account has not been approved for this team. Ask the database owner to add you.');
+    const [programsRes, fundingRes] = await Promise.all([
+      supabase.from('programs').select('*'),
+      supabase.from('funding_opportunities').select('*'),
+    ]);
+    databaseError('Could not load programs', programsRes.error);
+    databaseError('Could not load funding', fundingRes.error);
+    checkSession(version);
+    // Empty arrays are authoritative: deleted examples must stay deleted.
+    cachedPrograms = (programsRes.data || []).map(programFromRow);
+    cachedFunding = (fundingRes.data || []).map(fundingFromRow);
+  } else {
+    loadLocal();
   }
+  return { programs: cachedPrograms!, funding: cachedFunding! };
+}
+
+export function getProgramsSync(): Program[] {
+  context();
+  if (!getStoredAuthUser()) return [];
+  if (!getSupabaseClient()) loadLocal();
+  return cachedPrograms || [];
+}
+
+export function getFundingSync(): FundingOpportunity[] {
+  context();
+  if (!getStoredAuthUser()) return [];
+  if (!getSupabaseClient()) loadLocal();
+  return cachedFunding || [];
+}
+
+function commitPrograms(programs: Program[], remote: boolean) {
+  if (!remote) localStorage.setItem(PROGRAMS_KEY, JSON.stringify(programs));
+  cachedPrograms = programs;
+}
+
+function commitFunding(funding: FundingOpportunity[], remote: boolean) {
+  if (!remote) localStorage.setItem(FUNDING_KEY, JSON.stringify(funding));
+  cachedFunding = funding;
+}
+
+export async function saveProgram(program: Program): Promise<void> {
+  requireUser();
+  const version = storeVersion;
+  const supabase = getSupabaseClient();
+  let saved = { ...program, updatedAt: new Date().toISOString() };
+  if (supabase) {
+    const { data, error } = await supabase.from('programs').upsert(programToRow(saved)).select().single();
+    databaseError('Could not save program', error);
+    saved = programFromRow(data);
+  }
+  checkSession(version);
+  const current = getProgramsSync();
+  commitPrograms([saved, ...current.filter(item => item.id !== saved.id)], !!supabase);
+  notify();
+}
+
+export async function deleteProgram(id: string): Promise<void> {
+  requireUser();
+  const version = storeVersion;
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    // The foreign key deletes attached awards in the same database transaction.
+    const { data, error } = await supabase.from('programs').delete().eq('id', id).select('id');
+    databaseError('Could not delete program', error);
+    if (!data?.length) throw new Error('The program was not deleted. It may no longer exist or you may not have access.');
+  }
+  checkSession(version);
+  commitPrograms(getProgramsSync().filter(item => item.id !== id), !!supabase);
+  commitFunding(getFundingSync().filter(item => item.programId !== id), !!supabase);
+  notify();
+}
+
+export async function saveFundingOpportunity(funding: FundingOpportunity): Promise<void> {
+  requireUser();
+  const version = storeVersion;
+  const supabase = getSupabaseClient();
+  let saved = { ...funding, updatedAt: new Date().toISOString() };
+  if (supabase) {
+    const { data, error } = await supabase.from('funding_opportunities').upsert(fundingToRow(saved)).select().single();
+    databaseError('Could not save funding', error);
+    saved = fundingFromRow(data);
+  }
+  checkSession(version);
+  const current = getFundingSync();
+  commitFunding([saved, ...current.filter(item => item.id !== saved.id)], !!supabase);
+  notify();
 }
 
 export async function deleteFundingOpportunity(id: string): Promise<void> {
-  const user = getStoredAuthUser();
-  if (!user) {
-    throw new Error('Unauthorized: Please sign in to delete funding records');
-  }
-
-  const current = getFundingSync();
-  const updated = current.filter((f) => f.id !== id);
-  cachedFunding = updated;
-  localStorage.setItem(FUNDING_KEY, JSON.stringify(updated));
-  notify();
-
+  requireUser();
+  const version = storeVersion;
   const supabase = getSupabaseClient();
   if (supabase) {
-    try {
-      await supabase.from('funding_opportunities').delete().eq('id', id);
-    } catch (err) {
-      console.warn('Supabase funding delete error:', err);
-    }
+    const { data, error } = await supabase.from('funding_opportunities').delete().eq('id', id).select('id');
+    databaseError('Could not delete funding', error);
+    if (!data?.length) throw new Error('The award was not deleted. It may no longer exist or you may not have access.');
   }
+  checkSession(version);
+  commitFunding(getFundingSync().filter(item => item.id !== id), !!supabase);
+  notify();
 }
 
-export function resetDemoData() {
-  localStorage.setItem(PROGRAMS_KEY, JSON.stringify(INITIAL_DEMO_PROGRAMS));
-  localStorage.setItem(FUNDING_KEY, JSON.stringify(INITIAL_DEMO_FUNDING));
-  cachedPrograms = INITIAL_DEMO_PROGRAMS;
-  cachedFunding = INITIAL_DEMO_FUNDING;
-  notify();
+// Explicit user action only. Preserve all existing records, including edited demos.
+export async function restoreDemoData(): Promise<void> {
+  requireUser();
+  const version = storeVersion;
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    // Ignore conflicts even if another team member edits a demo during restoration.
+    const programsResult = await supabase.from('programs').upsert(
+      INITIAL_DEMO_PROGRAMS.map(programToRow), { onConflict: 'id', ignoreDuplicates: true }
+    );
+    databaseError('Could not restore demo programs', programsResult.error);
+    checkSession(version);
+    const fundingResult = await supabase.from('funding_opportunities').upsert(
+      INITIAL_DEMO_FUNDING.map(fundingToRow), { onConflict: 'id', ignoreDuplicates: true }
+    );
+    databaseError('Could not restore demo awards', fundingResult.error);
+    checkSession(version);
+    await fetchAllData();
+    notify();
+    return;
+  }
+  const { programs, funding } = await fetchAllData();
+  for (const program of INITIAL_DEMO_PROGRAMS) {
+    if (!programs.some(item => item.id === program.id)) await saveProgram(structuredClone(program));
+  }
+  for (const award of INITIAL_DEMO_FUNDING) {
+    if (!funding.some(item => item.id === award.id)) await saveFundingOpportunity(structuredClone(award));
+  }
 }

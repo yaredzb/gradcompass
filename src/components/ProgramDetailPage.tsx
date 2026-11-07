@@ -14,10 +14,10 @@ export interface ProgramDetailPageProps {
   fundingList: FundingOpportunity[];
   onBack: () => void;
   onEditProgram: (program: Program) => void;
-  onDeleteProgram: (id: string) => void;
+  onDeleteProgram: (id: string) => void | Promise<void>;
   onAddFunding: (program: Program) => void;
   onEditFunding: (funding: FundingOpportunity) => void;
-  onDeleteFunding: (id: string) => void;
+  onDeleteFunding: (id: string) => void | Promise<void>;
 }
 
 export const ProgramDetailPage: React.FC<ProgramDetailPageProps> = ({

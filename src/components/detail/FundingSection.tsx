@@ -8,7 +8,7 @@ interface FundingSectionProps {
   fundingList: FundingOpportunity[];
   onAddFunding: (program: Program) => void;
   onEditFunding: (fund: FundingOpportunity) => void;
-  onDeleteFunding: (id: string) => void;
+  onDeleteFunding: (id: string) => void | Promise<void>;
 }
 
 export const FundingSection: React.FC<FundingSectionProps> = ({

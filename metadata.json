@@ -1,8 +1,0 @@
-{
-  "name": "GradSearch EE·CE·AI",
-  "description": "Private graduate-study and scholarship research engine for EE, CE, and AI opportunities open to Ethiopian applicants.",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
-}

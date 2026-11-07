@@ -6,3 +6,9 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Database exports belong in encrypted backup storage, not Git.
+backups/
+*.dump
+*.tar.gz.gpg
+*.tar.gz.gpg.sha256

@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Environment variables or localStorage config
 const STORAGE_KEY_CONFIG = 'gradsearch_supabase_config_v1';
@@ -38,16 +38,14 @@ let supabaseInstance: SupabaseClient | null = null;
 export function getSupabaseClient(): SupabaseClient | null {
   const config = getStoredSupabaseConfig();
   if (!config.url || !config.anonKey) {
+    if (config.url || config.anonKey || import.meta.env.PROD) {
+      throw new Error('Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY before deploying.');
+    }
     return null;
   }
 
   if (!supabaseInstance) {
-    try {
-      supabaseInstance = createClient(config.url, config.anonKey);
-    } catch (e) {
-      console.warn('Failed to initialize Supabase client:', e);
-      return null;
-    }
+    supabaseInstance = createClient(config.url, config.anonKey);
   }
 
   return supabaseInstance;
@@ -75,4 +73,13 @@ export function setStoredAuthUser(user: { email: string; id: string } | null) {
   } else {
     localStorage.removeItem(STORAGE_KEY_AUTH_USER);
   }
+}
+
+export async function signOut() {
+  const client = getSupabaseClient();
+  if (client) {
+    const { error } = await client.auth.signOut({ scope: 'local' });
+    if (error) throw error;
+  }
+  setStoredAuthUser(null);
 }

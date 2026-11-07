@@ -7,9 +7,10 @@ import {
   deleteProgram,
   saveFundingOpportunity,
   deleteFundingOpportunity,
-  resetDemoData,
+  restoreDemoData,
+  clearStoreCache,
 } from './lib/storage';
-import { getStoredAuthUser, setStoredAuthUser } from './lib/supabase';
+import { getStoredAuthUser, setStoredAuthUser, getSupabaseClient, signOut } from './lib/supabase';
 import { AuthGate } from './components/AuthGate';
 import { TopNav } from './components/TopNav';
 import { FilterBar, FilterState, DEFAULT_FILTERS } from './components/FilterBar';
@@ -19,6 +20,7 @@ import { DirectoryTreeView } from './components/DirectoryTreeView';
 import { ProgramDetailPage } from './components/ProgramDetailPage';
 import { ProgramFormModal } from './components/ProgramFormModal';
 import { FundingFormModal } from './components/FundingFormModal';
+import { ConfirmModal } from './components/ConfirmModal';
 import { useFilteredPrograms } from './hooks/useFilteredPrograms';
 import { LayoutGrid, Table as TableIcon, AlertCircle } from 'lucide-react';
 
@@ -46,32 +48,91 @@ export default function App() {
     getStoredAuthUser()
   );
 
-  const handleSignOut = () => {
-    setStoredAuthUser(null);
-    setAuthUser(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
+  const [reloadCount, setReloadCount] = useState(0);
+  const [isRestoringDemo, setIsRestoringDemo] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      clearStoreCache();
+      setPrograms([]);
+      setFunding([]);
+      setInspectProgram(null);
+      setIsAddProgramOpen(false);
+      setFundingModalProgram(null);
+      setCurrentTab('catalog');
+      setAuthUser(null);
+    } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'Could not sign out. Please try again.');
+    }
   };
+
+  useEffect(() => {
+    try {
+      const client = getSupabaseClient();
+      if (!client) {
+        setIsAuthLoading(false);
+        return;
+      }
+      const { data } = client.auth.onAuthStateChange((_event, session) => {
+        const user = session?.user ? { id: session.user.id, email: session.user.email || '' } : null;
+        setStoredAuthUser(user);
+        setAuthUser(previous => previous?.id === user?.id && previous?.email === user?.email ? previous : user);
+        setIsAuthLoading(false);
+      });
+      return () => data.subscription.unsubscribe();
+    } catch (error) {
+      setStoredAuthUser(null);
+      setAuthUser(null);
+      setIsAuthLoading(false);
+    }
+  }, []);
 
   // Data Store State
   const [programs, setPrograms] = useState<Program[]>([]);
   const [funding, setFunding] = useState<FundingOpportunity[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  const loadData = async () => {
-    setIsLoadingData(true);
-    const data = await fetchAllData();
-    setPrograms(data.programs);
-    setFunding(data.funding);
-    setIsLoadingData(false);
-  };
-
   useEffect(() => {
-    if (authUser) {
-      loadData();
-      return subscribeToStore(() => {
-        loadData();
-      });
+    if (isAuthLoading) return;
+    if (!authUser) {
+      clearStoreCache();
+      setPrograms([]);
+      setFunding([]);
+      setInspectProgram(null);
+      setIsAddProgramOpen(false);
+      setFundingModalProgram(null);
+      setCurrentTab('catalog');
+      return;
     }
-  }, [authUser]);
+    let active = true;
+    let latestRequest = 0;
+    const loadData = async () => {
+      const request = ++latestRequest;
+      setIsLoadingData(true);
+      try {
+        const data = await fetchAllData();
+        if (!active || request !== latestRequest) return;
+        setPrograms(data.programs);
+        setFunding(data.funding);
+        setDataError(null);
+      } catch (error) {
+        if (!active || request !== latestRequest) return;
+        setPrograms([]);
+        setFunding([]);
+        setInspectProgram(null);
+        setCurrentTab('catalog');
+        setDataError(error instanceof Error ? error.message : 'Could not load saved records.');
+      } finally {
+        if (active && request === latestRequest) setIsLoadingData(false);
+      }
+    };
+    void loadData();
+    const unsubscribe = subscribeToStore(() => { void loadData(); });
+    return () => { active = false; unsubscribe(); };
+  }, [authUser, isAuthLoading, reloadCount]);
 
   // Tab State: 'catalog' | 'tree' | 'detail'
   const [currentTab, setCurrentTab] = useState<'catalog' | 'tree' | 'detail'>('catalog');
@@ -89,6 +150,7 @@ export default function App() {
   const [isAddProgramOpen, setIsAddProgramOpen] = useState(false);
   const [fundingModalProgram, setFundingModalProgram] = useState<Program | null>(null);
   const [editingFunding, setEditingFunding] = useState<FundingOpportunity | null>(null);
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
 
   const availableRegions = [
     'GCC',
@@ -125,6 +187,9 @@ export default function App() {
   };
 
   // If user is signed out, enforce AuthGate
+  if (isAuthLoading) {
+    return <div className="min-h-screen grid place-items-center" role="status">Loading your session…</div>;
+  }
   if (!authUser) {
     return <AuthGate onAuthenticated={() => setAuthUser(getStoredAuthUser())} />;
   }
@@ -153,6 +218,11 @@ export default function App() {
 
       {/* Main Content Viewport */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-5 overflow-x-hidden">
+        {dataError && <div role="alert" className="rounded-xl bg-red-50 dark:bg-red-950/30 p-4 text-sm text-red-800 dark:text-red-200">
+          <p>{dataError}</p>
+          <button type="button" className="mt-2 underline" onClick={() => setReloadCount(value => value + 1)}>Try again</button>
+        </div>}
+        {isLoadingData && <p role="status" className="text-sm text-slate-500">Loading saved records…</p>}
         {/* VIEW 1: Dedicated Full Detail Page */}
         {currentTab === 'detail' && inspectProgram && (
           <ProgramDetailPage
@@ -163,8 +233,8 @@ export default function App() {
               setEditingProgram(p);
               setIsAddProgramOpen(true);
             }}
-            onDeleteProgram={(id) => {
-              deleteProgram(id);
+            onDeleteProgram={async (id) => {
+              await deleteProgram(id);
               setCurrentTab('catalog');
             }}
             onAddFunding={(p) => {
@@ -344,17 +414,42 @@ export default function App() {
       >
         <div className="flex items-center justify-center">
           <button
-            onClick={() => {
-              if (window.confirm('Reset database to the two standard demo examples?')) {
-                resetDemoData();
-              }
-            }}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline cursor-pointer"
+            disabled={isRestoringDemo}
+            onClick={() => setIsRestoreModalOpen(true)}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline cursor-pointer disabled:opacity-50"
           >
-            Reset Demo Records
+            {isRestoringDemo ? 'Restoring demo records…' : 'Restore Demo Records'}
           </button>
         </div>
       </footer>
+
+      {/* Restore Demo Records Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isRestoreModalOpen}
+        title="Restore Demo Records?"
+        message="Restore the standard Nordic Master and Direct PhD demo records?"
+        confirmLabel={isRestoringDemo ? 'Restoring...' : 'Restore'}
+        cancelLabel="Cancel"
+        variant="warning"
+        isLoading={isRestoringDemo}
+        onConfirm={async () => {
+          if (isRestoringDemo) return;
+          setIsRestoringDemo(true);
+          try {
+            await restoreDemoData();
+            setIsRestoreModalOpen(false);
+          } catch (error) {
+            setDataError(
+              error instanceof Error
+                ? error.message
+                : 'Could not restore demo records.'
+            );
+          } finally {
+            setIsRestoringDemo(false);
+          }
+        }}
+        onCancel={() => { if (!isRestoringDemo) setIsRestoreModalOpen(false); }}
+      />
     </div>
   );
 }
