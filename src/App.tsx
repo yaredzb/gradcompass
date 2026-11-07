@@ -133,7 +133,7 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-[#FBF9F5] text-[#1F2937] dark:bg-[#0F172A] dark:text-[#F8FAFC]">
       {/* Top Bar (One-Row Contract) */}
       <TopNav
-        currentTab={currentTab === 'detail' ? 'catalog' : currentTab}
+        currentTab={currentTab}
         onSelectTab={(tab) => {
           if (tab === 'catalog' && currentTab === 'detail') {
             setCurrentTab('catalog');
@@ -182,6 +182,13 @@ export default function App() {
         {/* VIEW 2: Catalog (Grid or Spreadsheet) */}
         {currentTab === 'catalog' && (
           <div className="space-y-4">
+            {/* Catalog Page Header */}
+            <div className="pb-1">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white font-display">
+                Graduate Opportunities
+              </h1>
+            </div>
+
             {/* Filter Bar */}
             <FilterBar
               filters={filters}
@@ -200,37 +207,35 @@ export default function App() {
                 {programs.length} saved program{programs.length === 1 ? '' : 's'}
               </span>
 
-            {/* View Switcher Button Group */}
-            <div
-              className="flex items-center gap-1 bg-[#F4EFE6] dark:bg-[#1E293B]
-                p-1 rounded-lg border border-[#E6DFD5] dark:border-[#334155]"
-            >
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors
-                  flex items-center gap-1.5 ${
+              {/* Clean View Switcher */}
+              <div className="flex items-center border border-[#E6DFD5] dark:border-[#334155] rounded-lg overflow-hidden bg-white dark:bg-[#1E293B] shadow-2xs">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`px-2.5 py-1 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
                     viewMode === 'grid'
-                      ? 'bg-white dark:bg-[#0F172A] text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-[#F4EFE6] dark:hover:bg-slate-800'
                   }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span>Grid View</span>
-              </button>
-              <button
-                onClick={() => setViewMode('spreadsheet')}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors
-                  flex items-center gap-1.5 ${
+                  title="Card Grid View"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">Grid</span>
+                </button>
+                <div className="w-px h-4 bg-[#E6DFD5] dark:bg-[#334155]" />
+                <button
+                  onClick={() => setViewMode('spreadsheet')}
+                  className={`px-2.5 py-1 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
                     viewMode === 'spreadsheet'
-                      ? 'bg-white dark:bg-[#0F172A] text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-[#F4EFE6] dark:hover:bg-slate-800'
                   }`}
-              >
-                <TableIcon className="w-3.5 h-3.5" />
-                <span>Spreadsheet View</span>
-              </button>
+                  title="Spreadsheet Table View"
+                >
+                  <TableIcon className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">Spreadsheet</span>
+                </button>
+              </div>
             </div>
-          </div>
 
           {/* Empty Results State */}
           {filteredPrograms.length === 0 && (

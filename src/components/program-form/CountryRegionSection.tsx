@@ -70,15 +70,11 @@ export const CountryRegionSection: React.FC<CountryRegionSectionProps> = ({
       {/* Selected Country Pills */}
       <div>
         <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-          Host Countries * (Select below)
+          Host Countries *
         </label>
-        <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-[#E6DFD5] dark:border-[#334155] bg-white dark:bg-[#0F172A] min-h-[42px] items-center">
-          {selectedCountries.length === 0 ? (
-            <span className="text-xs text-slate-400 italic">
-              No country selected yet. Search below to add.
-            </span>
-          ) : (
-            selectedCountries.map((c) => (
+        {selectedCountries.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-[#E6DFD5] dark:border-[#334155] bg-white dark:bg-[#0F172A] items-center mb-2">
+            {selectedCountries.map((c) => (
               <span
                 key={c}
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#F4EFE6] dark:bg-[#1E293B] text-slate-800 dark:text-slate-200 text-xs font-medium"
@@ -87,14 +83,14 @@ export const CountryRegionSection: React.FC<CountryRegionSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => removeCountry(c)}
-                  className="text-slate-400 hover:text-red-500"
+                  className="text-slate-400 hover:text-red-500 cursor-pointer"
                 >
                   <X className="w-3 h-3" />
                 </button>
               </span>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Country Autocomplete Search */}

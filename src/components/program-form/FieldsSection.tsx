@@ -35,16 +35,12 @@ export const FieldsSection: React.FC<FieldsSectionProps> = ({
         03. Fields & Specializations (EE, CE, AI Disciplines)
       </h3>
 
-      <div
-        className="flex flex-wrap gap-1.5 min-h-[38px] p-2 rounded-lg border
-          border-[#E6DFD5] dark:border-[#334155] bg-white dark:bg-[#0F172A] items-center"
-      >
-        {fields.length === 0 ? (
-          <span className="text-xs text-slate-400 italic">
-            No disciplines added yet. Type below to add.
-          </span>
-        ) : (
-          fields.map((f) => (
+      {fields.length > 0 && (
+        <div
+          className="flex flex-wrap gap-1.5 p-2 rounded-lg border
+            border-[#E6DFD5] dark:border-[#334155] bg-white dark:bg-[#0F172A] items-center"
+        >
+          {fields.map((f) => (
             <span
               key={f}
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded
@@ -59,9 +55,9 @@ export const FieldsSection: React.FC<FieldsSectionProps> = ({
                 <X className="w-3 h-3" />
               </button>
             </span>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       <div className="flex gap-2">
         <input

@@ -66,7 +66,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
     <div className="min-h-screen flex items-center justify-center p-4 bg-[#FBF9F5] dark:bg-[#0F172A] text-[#1F2937] dark:text-[#F8FAFC]">
       <div className="w-full max-w-sm bg-white dark:bg-[#1E293B] border border-[#E6DFD5] dark:border-[#334155] rounded-xl p-6 sm:p-8 shadow-xs">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-6">
-          GradSearch
+          GradQuest
         </h1>
 
         {errorMsg && (
