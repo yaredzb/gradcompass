@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { useScrollLock } from '../hooks/useScrollLock';
 import {
   FundingOpportunity,
   Program,
@@ -27,6 +28,7 @@ export const FundingFormModal: React.FC<FundingFormModalProps> = ({
   onSave,
   onClose,
 }) => {
+  useScrollLock();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const isEditing = !!initialFunding;
@@ -234,7 +236,7 @@ export const FundingFormModal: React.FC<FundingFormModalProps> = ({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-2
-        sm:p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto"
+        sm:p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto overscroll-contain"
     >
       <div
         className="relative w-full max-w-2xl max-h-[92vh] bg-white
@@ -269,7 +271,7 @@ export const FundingFormModal: React.FC<FundingFormModalProps> = ({
         {/* Scrollable Form Body */}
         <form
           onSubmit={handleSubmit}
-          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 text-xs sm:text-sm"
+          className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-5 text-xs sm:text-sm"
         >
           {saveError && <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-950/30 p-3 text-sm text-red-700 dark:text-red-200">{saveError}</p>}
           {/* Section 1: Basic Funding Identification */}

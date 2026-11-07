@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { useScrollLock } from '../hooks/useScrollLock';
 import {
   Program,
   DegreeRoute,
@@ -9,13 +10,14 @@ import {
   MediumOfInstruction,
   IntakeStatus,
   CampusCityCost,
+  ProofOfFunds,
+  EnglishPolicy,
 } from '../types';
 import {
   ALL_COUNTRIES,
   getAssignedRegionsForCountries,
 } from '../utils/regions';
-import { IdentificationSection } from './program-form/IdentificationSection';
-import { CountryRegionSection } from './program-form/CountryRegionSection';
+import { IdentificationSection, UniversityPartner } from './program-form/IdentificationSection';
 import { FieldsSection } from './program-form/FieldsSection';
 import { DegreeStructureSection } from './program-form/DegreeStructureSection';
 import { AdmissionsPrereqSection } from './program-form/AdmissionsPrereqSection';
@@ -23,6 +25,7 @@ import { EnglishProficiencySection } from './program-form/EnglishProficiencySect
 import { SelectionCompetitivenessSection } from './program-form/SelectionCompetitivenessSection';
 import { IntakesSection } from './program-form/IntakesSection';
 import { CampusCitiesSection } from './program-form/CampusCitiesSection';
+import { ProofOfFundsSection } from './program-form/ProofOfFundsSection';
 
 export interface ProgramFormModalProps {
   initialProgram?: Program | null;
@@ -39,6 +42,7 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
   onSave,
   onClose,
 }) => {
+  useScrollLock();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const isEditing = !!initialProgram;
@@ -47,18 +51,43 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
   const [officialName, setOfficialName] = useState(
     initialProgram?.officialName || ''
   );
-  const [university, setUniversity] = useState(
-    initialProgram?.university || ''
-  );
-  const [customUniversity, setCustomUniversity] = useState('');
-  const [isNewUniversity, setIsNewUniversity] = useState(false);
   const [isJointProgram, setIsJointProgram] = useState(
     initialProgram?.isJointProgram || false
   );
-  const [selectedCountries, setSelectedCountries] = useState<string[]>(
-    initialProgram?.countries || []
+  const [singleUniversity, setSingleUniversity] = useState<string>(
+    initialProgram && !initialProgram.isJointProgram
+      ? initialProgram.university
+      : initialProgram?.universities?.[0] || ''
   );
-  const [countrySearch, setCountrySearch] = useState('');
+  const [singleCountry, setSingleCountry] = useState<string>(
+    initialProgram?.countries?.[0] || ''
+  );
+  const [consortiumName, setConsortiumName] = useState(
+    initialProgram?.consortiumName ||
+      (initialProgram?.isJointProgram && !initialProgram.universities?.length
+        ? initialProgram.university
+        : '')
+  );
+  const [partners, setPartners] = useState<UniversityPartner[]>(() => {
+    if (initialProgram?.isJointProgram) {
+      const unis =
+        initialProgram.universities && initialProgram.universities.length > 0
+          ? initialProgram.universities
+          : [initialProgram.university];
+      const countries = initialProgram.countries || [];
+      return unis.map((u, i) => ({
+        university: u,
+        country: countries[i] || countries[0] || '',
+      }));
+    }
+    return [
+      {
+        university: initialProgram?.university || '',
+        country: initialProgram?.countries?.[0] || '',
+      },
+      { university: '', country: '' },
+    ];
+  });
   const [officialLink, setOfficialLink] = useState(
     initialProgram?.officialLink || ''
   );
@@ -125,6 +154,23 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
   const [instructionLanguageDetails, setInstructionLanguageDetails] = useState(
     initialProgram?.instructionLanguageDetails || ''
   );
+  const [englishPolicy, setEnglishPolicy] = useState<EnglishPolicy>(() => {
+    if (initialProgram?.englishProficiency?.policy) {
+      return initialProgram.englishProficiency.policy;
+    }
+    if (initialProgram?.englishProficiency?.testRequired === false) {
+      return 'NotRequired';
+    }
+    if (
+      initialProgram?.englishProficiency?.waivers?.toLowerCase().includes('moi') ||
+      initialProgram?.englishProficiency?.waivers?.toLowerCase().includes('english-medium') ||
+      initialProgram?.englishProficiency?.acceptedTests?.includes('Medium of Instruction Certificate') ||
+      initialProgram?.englishProficiency?.acceptedTests?.includes('MOI Certificate')
+    ) {
+      return 'WaivedByMOI';
+    }
+    return 'StrictlyRequired';
+  });
   const [englishTests, setEnglishTests] = useState<string[]>(
     initialProgram?.englishProficiency?.acceptedTests || [
       'TOEFL iBT',
@@ -221,23 +267,72 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
       new Date().toISOString().split('T')[0]
   );
 
-  const assignedRegions = getAssignedRegionsForCountries(selectedCountries);
+  const [proofOfFunds, setProofOfFunds] = useState<ProofOfFunds>(
+    initialProgram?.proofOfFunds || {
+      required: 'Unclear',
+      amount: '',
+      currency: 'EUR',
+      notes: '',
+    }
+  );
+
+  const currentCountries = isJointProgram
+    ? [...new Set(partners.map((p) => p.country.trim()).filter(Boolean))]
+    : singleCountry.trim()
+    ? [singleCountry.trim()]
+    : [];
+
+  const assignedRegions = getAssignedRegionsForCountries(currentCountries);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSaving) return;
 
-    const finalUniversity = isNewUniversity
-      ? customUniversity.trim()
-      : university;
-    if (!finalUniversity) {
-      setSaveError('Please enter or select a university or consortium.');
-      return;
-    }
-
     if (!officialName.trim()) {
       setSaveError('Please enter the official program name.');
       return;
+    }
+
+    let participatingUniversities: string[] = [];
+    let hostCountries: string[] = [];
+    let finalUniversity = '';
+
+    if (isJointProgram) {
+      if (partners.length < 2) {
+        setSaveError('Please add at least two participating universities for a consortium.');
+        return;
+      }
+      for (let i = 0; i < partners.length; i++) {
+        if (!partners[i].university.trim()) {
+          setSaveError(`Please enter a university name for partner ${i + 1}.`);
+          return;
+        }
+        if (!partners[i].country.trim()) {
+          setSaveError(`Please select a country for partner ${i + 1}.`);
+          return;
+        }
+      }
+      participatingUniversities = partners.map((p) => p.university.trim());
+      const lowerNames = participatingUniversities.map((n) => n.toLowerCase());
+      if (new Set(lowerNames).size !== lowerNames.length) {
+        setSaveError('Please enter each participating university only once.');
+        return;
+      }
+      hostCountries = [...new Set(partners.map((p) => p.country.trim()))];
+      finalUniversity =
+        consortiumName.trim() || participatingUniversities.join(' / ');
+    } else {
+      if (!singleUniversity.trim()) {
+        setSaveError('Please select or enter a university.');
+        return;
+      }
+      if (!singleCountry.trim()) {
+        setSaveError('Please select a country.');
+        return;
+      }
+      participatingUniversities = [singleUniversity.trim()];
+      hostCountries = [singleCountry.trim()];
+      finalUniversity = singleUniversity.trim();
     }
 
     let finalDegreeRoute: DegreeRoute = 'Masters';
@@ -264,10 +359,13 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
       id: initialProgram?.id || crypto.randomUUID(),
       officialName: officialName.trim(),
       university: finalUniversity,
+      universities: participatingUniversities,
+      consortiumName: isJointProgram ? consortiumName.trim() : undefined,
       isJointProgram,
-      countries: selectedCountries,
+      countries: hostCountries,
       assignedRegions,
       campusCities: campusCities.filter((c) => c.city.trim() !== ''),
+      proofOfFunds,
       officialLink: officialLink.trim() || 'https://example.org',
       fields,
       degreeRoute: finalDegreeRoute,
@@ -282,9 +380,20 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
       mediumOfInstruction,
       instructionLanguageDetails: instructionLanguageDetails.trim(),
       englishProficiency: {
-        acceptedTests: englishTests,
-        minimumScores: englishMinimumScores.trim(),
-        waivers: englishWaivers.trim(),
+        policy: englishPolicy,
+        testRequired: englishPolicy !== 'NotRequired',
+        acceptedTests:
+          englishPolicy === 'NotRequired'
+            ? []
+            : englishTests.filter(
+                (t) =>
+                  t !== 'MOI Certificate' &&
+                  t !== 'Medium of Instruction Certificate'
+              ),
+        minimumScores:
+          englishPolicy === 'NotRequired' ? '' : englishMinimumScores.trim(),
+        waivers:
+          englishPolicy === 'NotRequired' ? '' : englishWaivers.trim(),
       },
       selectionSteps,
       admissionCompetitiveness: {
@@ -330,14 +439,11 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
     }
   };
 
-  const filteredCountryList = ALL_COUNTRIES.filter((c) =>
-    c.toLowerCase().includes(countrySearch.toLowerCase())
-  );
-
   return (
     <div
+      role="dialog" aria-modal="true" aria-labelledby="program-form-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-2
-        sm:p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto"
+        sm:p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto overscroll-contain"
     >
       <div
         className="relative w-full max-w-3xl max-h-[92vh] bg-white
@@ -350,7 +456,7 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
             flex items-center justify-between"
         >
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+            <h2 id="program-form-title" className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
               {isEditing
                 ? 'Edit Graduate Program Record'
                 : 'Add Graduate Program Record'}
@@ -360,6 +466,7 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
             </p>
           </div>
           <button
+            aria-label="Close program form"
             onClick={onClose}
               disabled={isSaving}
             className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900
@@ -372,37 +479,30 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
         {/* Scrollable Form Body */}
         <form
           onSubmit={handleSubmit}
-          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 text-xs sm:text-sm"
+          className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-6 text-xs sm:text-sm"
         >
           {saveError && <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-950/30 p-3 text-sm text-red-700 dark:text-red-200">{saveError}</p>}
           {/* Section 1: Institution & Official Name */}
           <IdentificationSection
             officialName={officialName}
             setOfficialName={setOfficialName}
-            university={university}
-            setUniversity={setUniversity}
-            customUniversity={customUniversity}
-            setCustomUniversity={setCustomUniversity}
-            isNewUniversity={isNewUniversity}
-            setIsNewUniversity={setIsNewUniversity}
+            isJointProgram={isJointProgram}
+            setIsJointProgram={setIsJointProgram}
+            singleUniversity={singleUniversity}
+            setSingleUniversity={setSingleUniversity}
+            singleCountry={singleCountry}
+            setSingleCountry={setSingleCountry}
+            consortiumName={consortiumName}
+            setConsortiumName={setConsortiumName}
+            partners={partners}
+            setPartners={setPartners}
             existingUniversities={existingUniversities}
             officialLink={officialLink}
             setOfficialLink={setOfficialLink}
-          />
-
-          {/* Section 2: Country & Region */}
-          <CountryRegionSection
-            isJointProgram={isJointProgram}
-            setIsJointProgram={setIsJointProgram}
-            selectedCountries={selectedCountries}
-            setSelectedCountries={setSelectedCountries}
-            countrySearch={countrySearch}
-            setCountrySearch={setCountrySearch}
-            filteredCountryList={filteredCountryList}
             assignedRegions={assignedRegions}
           />
 
-          {/* Section 3: Fields & Specializations */}
+          {/* Section 2: Fields & Specializations */}
           <FieldsSection
             fields={fields}
             setFields={setFields}
@@ -442,6 +542,8 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
 
           {/* Section 6: English Proficiency & Waivers */}
           <EnglishProficiencySection
+            englishPolicy={englishPolicy}
+            setEnglishPolicy={setEnglishPolicy}
             englishTests={englishTests}
             setEnglishTests={setEnglishTests}
             newEnglishTest={newEnglishTest}
@@ -493,6 +595,12 @@ export const ProgramFormModal: React.FC<ProgramFormModalProps> = ({
             setCampusCities={setCampusCities}
             informationLastChecked={informationLastChecked}
             setInformationLastChecked={setInformationLastChecked}
+          />
+
+          {/* Section 10: Proof of Funds & Blocked Account (Sperrkonto) */}
+          <ProofOfFundsSection
+            proofOfFunds={proofOfFunds}
+            setProofOfFunds={setProofOfFunds}
           />
 
           {/* Form Actions Footer */}

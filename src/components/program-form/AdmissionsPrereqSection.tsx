@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useId, useState } from 'react';
+import { Info } from 'lucide-react';
 
 interface AdmissionsPrereqSectionProps {
   minimumGrades: string;
@@ -21,6 +22,10 @@ export const AdmissionsPrereqSection: React.FC<AdmissionsPrereqSectionProps> = (
   keyRequirements,
   setKeyRequirements,
 }) => {
+  const [showGradingHelp, setShowGradingHelp] = useState(false);
+  const gradingId = useId();
+  const gradingHelpId = useId();
+  const gradingHelp = 'The grading system used for the minimum grade requirement. For example, a 3.0 GPA on a 4.0 scale or 75% on a 100-point scale. For a German scale, lower grades are better.';
   return (
     <div className="space-y-4 pt-2 border-t border-[#E6DFD5] dark:border-[#334155]">
       <h3
@@ -45,16 +50,25 @@ export const AdmissionsPrereqSection: React.FC<AdmissionsPrereqSectionProps> = (
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-            Grading Scale
-          </label>
+          <div className="flex items-center gap-1.5 mb-1">
+            <label htmlFor={gradingId} className="text-xs font-medium text-slate-700 dark:text-slate-300">Grading Scale</label>
+            <button type="button" aria-label="About grading scale" title={gradingHelp}
+              aria-expanded={showGradingHelp} aria-controls={gradingHelpId}
+              onClick={() => setShowGradingHelp(value => !value)}
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400">
+              <Info size={14} aria-hidden="true" />
+            </button>
+          </div>
           <input
+            id={gradingId}
+            aria-describedby={showGradingHelp ? gradingHelpId : undefined}
             type="text"
             value={gradingScale}
             onChange={(e) => setGradingScale(e.target.value)}
             placeholder="e.g. 4.0 Scale or ECTS"
             className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-[#E6DFD5] dark:border-[#334155] bg-white dark:bg-[#0F172A] text-slate-900 dark:text-white"
           />
+          <p id={gradingHelpId} hidden={!showGradingHelp} className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{gradingHelp}</p>
         </div>
       </div>
 

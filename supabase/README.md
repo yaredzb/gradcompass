@@ -1,5 +1,7 @@
 # Supabase SQL Editor tabs
 
+Existing installations using the university/consortium form: run [20261107_program_institutions.sql](upgrades/20261107_program_institutions.sql) once before deploying the updated app. It only adds the participating-universities and consortium-name columns; saved records and demos are preserved. Fresh installations already include these columns in query 01.
+
 Create six saved queries in the Supabase SQL Editor using the names below. Copy the entire matching file into each query, including `BEGIN` and `COMMIT`.
 
 Run the queries **one at a time, in this order**, using the database owner (`postgres`). Wait for each query to succeed before running the next.

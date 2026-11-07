@@ -33,6 +33,11 @@ export type MediumOfInstruction =
   | 'Other'
   | 'Unclear';
 
+export type EnglishPolicy =
+  | 'NotRequired'
+  | 'WaivedByMOI'
+  | 'StrictlyRequired';
+
 export type IntakeStatus =
   | 'FixedDeadline'
   | 'Rolling'
@@ -57,14 +62,24 @@ export interface CampusCityCost {
   sourceLink?: string;
 }
 
+export interface ProofOfFunds {
+  required: 'Yes' | 'No' | 'Unclear';
+  amount?: number | '';
+  currency?: string;
+  notes?: string; // e.g. "Blocked account (Sperrkonto) must be opened before visa interview"
+}
+
 export interface Program {
   id: string;
   officialName: string;
   university: string; // Institution or consortium name
+  universities?: string[]; // Participating institutions; legacy records may omit this
+  consortiumName?: string;
   isJointProgram: boolean;
   countries: string[]; // Support multiple for joint programs
   assignedRegions: string[]; // e.g. ["Europe", "Nordic countries"] or ["GCC"]
   campusCities: CampusCityCost[];
+  proofOfFunds?: ProofOfFunds;
   officialLink: string;
   fields: string[]; // "Electrical Engineering", "Computer Engineering", "AI", etc.
   degreeRoute: DegreeRoute;
@@ -79,6 +94,8 @@ export interface Program {
   mediumOfInstruction: MediumOfInstruction;
   instructionLanguageDetails?: string;
   englishProficiency: {
+    policy?: EnglishPolicy;
+    testRequired?: boolean;
     acceptedTests: string[];
     minimumScores?: string;
     waivers?: string;

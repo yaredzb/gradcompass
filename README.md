@@ -7,6 +7,7 @@ A private, mobile-first research and record management engine built for scholars
 
 ## Key Features
 
+- **Shareable Program Links**: Every details page has a URL at `/programs/<id>/<institution-and-program-slug>`. Links support refresh, bookmarks, new tabs, and browser Back/Forward. Renamed programs remain accessible through the original ID. Teammates must sign in with an approved account. Use **Copy link** in the details header to share a record.
 - **Decoupled Intake & Chronological Deadlines**:
   - Intake terms (e.g., `Fall 2027`, `Spring 2028`) are decoupled from ISO deadline dates (`2027-01-15`) and intake status (`FixedDeadline`, `Rolling`, `NotOffered`), ensuring accurate chronological sorting without string collision.
 - **Strict Direct-PhD Entry Classification**:
@@ -152,6 +153,8 @@ The examples are inserted once. Deployments and schema reruns preserve edits, an
 ---
 
 ## Available Scripts
+
+Program URLs use browser history. The included `vercel.json` and `public/_redirects` provide the `/programs/*` and `/directory` fallbacks for Vercel and Netlify. On another host, serve `index.html` for those paths so opening or refreshing a shared link works. Keep Supabase environment variables configured at build time; deep links use the same sign-in and team access checks as the catalog.
 
 | Command | Description |
 | :--- | :--- |

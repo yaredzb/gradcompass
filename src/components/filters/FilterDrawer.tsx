@@ -2,6 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { FilterState } from '../FilterBar';
 import { ALL_COUNTRIES } from '../../utils/regions';
+import { useScrollLock } from '../../hooks/useScrollLock';
 
 interface FilterDrawerProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
   availableFields,
   totalResults,
 }) => {
+  useScrollLock(isOpen);
   if (!isOpen) return null;
 
   return (
@@ -65,7 +67,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
         </div>
 
         {/* Scrollable Select Fields */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4 text-xs">
           {/* Region */}
           <div>
             <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">

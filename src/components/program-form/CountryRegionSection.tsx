@@ -4,7 +4,6 @@ import { formatRegionDisplay } from '../../utils/regions';
 
 interface CountryRegionSectionProps {
   isJointProgram: boolean;
-  setIsJointProgram: (val: boolean) => void;
   selectedCountries: string[];
   setSelectedCountries: (val: string[]) => void;
   countrySearch: string;
@@ -15,7 +14,6 @@ interface CountryRegionSectionProps {
 
 export const CountryRegionSection: React.FC<CountryRegionSectionProps> = ({
   isJointProgram,
-  setIsJointProgram,
   selectedCountries,
   setSelectedCountries,
   countrySearch,
@@ -23,13 +21,6 @@ export const CountryRegionSection: React.FC<CountryRegionSectionProps> = ({
   filteredCountryList,
   assignedRegions,
 }) => {
-  const handleJointToggle = (checked: boolean) => {
-    setIsJointProgram(checked);
-    if (!checked && selectedCountries.length > 1) {
-      setSelectedCountries([selectedCountries[0]]);
-    }
-  };
-
   const removeCountry = (c: string) => {
     setSelectedCountries(selectedCountries.filter((item) => item !== c));
   };
@@ -54,17 +45,7 @@ export const CountryRegionSection: React.FC<CountryRegionSectionProps> = ({
         >
           02. Country & Region
         </h3>
-        <label className="flex items-center gap-2 text-xs cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isJointProgram}
-            onChange={(e) => handleJointToggle(e.target.checked)}
-            className="rounded"
-          />
-          <span className="font-medium text-slate-800 dark:text-slate-200">
-            Joint / Multiple Host Countries Consortium
-          </span>
-        </label>
+
       </div>
 
       {/* Selected Country Pills */}
@@ -74,7 +55,7 @@ export const CountryRegionSection: React.FC<CountryRegionSectionProps> = ({
         </label>
         {selectedCountries.length > 0 && (
           <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-[#E6DFD5] dark:border-[#334155] bg-white dark:bg-[#0F172A] items-center mb-2">
-            {selectedCountries.map((c) => (
+            {(isJointProgram ? selectedCountries : selectedCountries.slice(0, 1)).map((c) => (
               <span
                 key={c}
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#F4EFE6] dark:bg-[#1E293B] text-slate-800 dark:text-slate-200 text-xs font-medium"

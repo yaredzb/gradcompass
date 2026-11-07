@@ -37,6 +37,19 @@ beforeEach(() => {
 });
 
 describe('demo records and database authority', () => {
+  it('round-trips consortium members and names through database writes and reads', async () => {
+    const client = remote();
+    const store = await import('./storage');
+    await store.fetchAllData();
+    const program = { ...INITIAL_DEMO_PROGRAMS[0], isJointProgram: true, university: 'Nordic partnership', consortiumName: 'Nordic partnership', universities: ['Aalto University', 'KTH'] };
+    const row = { id: program.id, university: program.university, is_joint_program: true, universities: program.universities, consortium_name: program.consortiumName };
+    const write = query({ data: row, error: null });
+    client.from.mockReturnValue(write);
+    await store.saveProgram(program);
+    expect(write.upsert).toHaveBeenCalledWith(expect.objectContaining({ universities: ['Aalto University', 'KTH'], consortium_name: 'Nordic partnership' }));
+    expect(store.getProgramsSync().find(item => item.id === program.id)).toMatchObject({ universities: program.universities, consortiumName: program.consortiumName });
+  });
+
   it('keeps deleted local demos deleted after a reload, including the last record', async () => {
     const store = await import('./storage');
     expect((await store.fetchAllData()).programs).toHaveLength(2);

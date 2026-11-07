@@ -1,5 +1,5 @@
 import React from 'react';
-import { Coins } from 'lucide-react';
+import { Coins, Landmark } from 'lucide-react';
 import { Program } from '../../types';
 import { DetailField, SourceLink } from './DetailPrimitives';
 
@@ -56,6 +56,42 @@ export const LivingCostsSidebar: React.FC<{ program: Program }> = ({ program }) 
             </div>
           );
         })}
+      </div>
+    )}
+
+    {/* Proof of Funds / Blocked Account Card */}
+    {program.proofOfFunds && program.proofOfFunds.required !== 'Unclear' && (
+      <div className="mt-4 pt-3 border-t border-[#E6DFD5] dark:border-[#334155]">
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200">
+            <Landmark size={14} className="text-amber-600 dark:text-amber-400 shrink-0" aria-hidden="true" />
+            <span>Proof of Funds (Blocked Account)</span>
+          </div>
+          <span
+            className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-sm uppercase tracking-wider ${
+              program.proofOfFunds.required === 'Yes'
+                ? 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300'
+                : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-300'
+            }`}
+          >
+            {program.proofOfFunds.required === 'Yes' ? 'Required' : 'Not Required'}
+          </span>
+        </div>
+
+        {program.proofOfFunds.required === 'Yes' &&
+          program.proofOfFunds.amount !== undefined &&
+          program.proofOfFunds.amount !== '' && (
+            <p className="text-xs font-mono font-bold text-slate-900 dark:text-slate-100 mt-1">
+              Deposit: {Number(program.proofOfFunds.amount).toLocaleString()}{' '}
+              {program.proofOfFunds.currency || 'EUR'}
+            </p>
+          )}
+
+        {program.proofOfFunds.notes && (
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
+            {program.proofOfFunds.notes}
+          </p>
+        )}
       </div>
     )}
   </section>

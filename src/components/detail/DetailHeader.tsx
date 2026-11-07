@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Edit2, Trash2, GraduationCap, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ArrowLeft, Edit2, Trash2, GraduationCap, CheckCircle2, Copy, Check } from 'lucide-react';
+import { programPath } from '../../lib/routes';
 import { Program } from '../../types';
 import { formatRegionDisplay } from '../../utils/regions';
 import { getDegreeRouteLabel } from './formatters';
@@ -22,6 +23,8 @@ export const DetailHeader: React.FC<DetailHeaderProps> = ({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  useEffect(() => setCopyStatus('idle'), [program.id]);
 
   const handleConfirmDelete = async () => {
     if (isDeleting) return;
@@ -66,6 +69,15 @@ export const DetailHeader: React.FC<DetailHeaderProps> = ({
         </button>
 
         <div className="detail-actions">
+          <button type="button" className="detail-button" onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(new URL(programPath(program), window.location.origin).href);
+              setCopyStatus('copied');
+            } catch { setCopyStatus('error'); }
+          }}>
+            {copyStatus === 'copied' ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+            <span>{copyStatus === 'copied' ? 'Copied' : 'Copy link'}</span>
+          </button>
           <button
             className="detail-button"
             onClick={() => onEditProgram(program)}
@@ -97,6 +109,7 @@ export const DetailHeader: React.FC<DetailHeaderProps> = ({
       />
 
       {deleteError && <p role="alert" className="p-3 text-sm text-red-700 dark:text-red-200">{deleteError}</p>}
+      {copyStatus === 'error' && <p role="status" className="p-3 text-sm text-slate-500">Could not copy the link. Copy the address from your browser instead.</p>}
       <div className="detail-title-block">
         <div className="detail-meta-row">
           <div className="detail-institution-avatar" aria-hidden="true">
@@ -124,6 +137,9 @@ export const DetailHeader: React.FC<DetailHeaderProps> = ({
         </div>
 
         <h1 className="detail-heading">{displayName}</h1>
+        {program.isJointProgram && !!program.consortiumName && !!program.universities?.length && (
+          <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{program.universities.join(' / ')}</p>
+        )}
 
         <div className="detail-header-bottom">
           <div className="detail-summary-pills">

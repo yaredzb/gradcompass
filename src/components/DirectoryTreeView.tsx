@@ -1,3 +1,4 @@
+import { ProgramLink } from './ProgramLink';
 import React, { useState } from 'react';
 import { ChevronRight, ChevronDown, Building2, MapPin, Globe, ExternalLink, GraduationCap, Award } from 'lucide-react';
 import { Program, FundingOpportunity } from '../types';
@@ -232,9 +233,8 @@ export const DirectoryTreeView: React.FC<DirectoryTreeViewProps> = ({
                                         );
 
                                         return (
-                                          <div
+                                          <ProgramLink program={prog} onNavigate={onSelectProgram}
                                             key={prog.id}
-                                            onClick={() => onSelectProgram(prog)}
                                             className="group/item cursor-pointer p-1.5 rounded hover:bg-[#F4EFE6]/60 dark:hover:bg-[#0F172A]/60 transition-colors flex items-start justify-between gap-2"
                                           >
                                             <div>
@@ -280,7 +280,7 @@ export const DirectoryTreeView: React.FC<DirectoryTreeViewProps> = ({
                                             <span className="text-slate-400 hover:text-slate-800 dark:hover:text-white shrink-0 p-1">
                                               <ExternalLink className="w-3 h-3" />
                                             </span>
-                                          </div>
+                                          </ProgramLink>
                                         );
                                       })}
                                     </div>

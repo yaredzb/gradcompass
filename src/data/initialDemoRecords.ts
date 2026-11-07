@@ -17,6 +17,12 @@ export const INITIAL_DEMO_PROGRAMS: Program[] = [
         sourceLink: '',
       },
     ],
+    proofOfFunds: {
+      required: 'Yes',
+      amount: 103140,
+      currency: 'SEK',
+      notes: 'Swedish Migration Agency requires proof of living expenses (~10,314 SEK/month for 10 months) before residence permit issuance; waived if awarded full scholarship.',
+    },
     officialLink: 'https://example.org/nordic-master-embedded-ai',
     fields: ['Artificial Intelligence', 'Computer Engineering', 'Embedded Systems'],
     degreeRoute: 'Masters',
@@ -31,7 +37,8 @@ export const INITIAL_DEMO_PROGRAMS: Program[] = [
     mediumOfInstruction: 'English',
     instructionLanguageDetails: '100% instructed in English for all coursework, labs, and master thesis research.',
     englishProficiency: {
-      acceptedTests: ['TOEFL iBT', 'IELTS Academic', 'PTE Academic', 'Medium of Instruction Certificate'],
+      policy: 'WaivedByMOI',
+      acceptedTests: ['TOEFL iBT', 'IELTS Academic', 'PTE Academic'],
       minimumScores: 'TOEFL iBT 90 (min 20 writing) or IELTS 6.5 (no subscore below 6.0)',
       waivers: 'Full waiver granted if undergraduate degree was formally taught and examined in English with an official university confirmation letter.',
     },
@@ -78,6 +85,10 @@ export const INITIAL_DEMO_PROGRAMS: Program[] = [
         sourceLink: '',
       },
     ],
+    proofOfFunds: {
+      required: 'No',
+      notes: 'All admitted doctoral fellows receive fully funded institute sponsorship; bank statement/blocked account is not required for the UAE student visa.',
+    },
     officialLink: 'https://example.org/gaist-direct-phd-ecs',
     fields: ['Electrical Engineering', 'Computer Engineering', 'Machine Learning'],
     degreeRoute: 'DirectPhD',
@@ -92,6 +103,7 @@ export const INITIAL_DEMO_PROGRAMS: Program[] = [
     mediumOfInstruction: 'English',
     instructionLanguageDetails: 'English is the sole official language of all graduate instruction and doctoral research.',
     englishProficiency: {
+      policy: 'WaivedByMOI',
       acceptedTests: ['TOEFL iBT', 'IELTS Academic', 'EmSAT English'],
       minimumScores: 'TOEFL iBT 91 or IELTS Academic 6.5',
       waivers: 'Waiver considered for native English speakers or applicants holding a degree from an English-medium university with verification.',

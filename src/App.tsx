@@ -22,9 +22,12 @@ import { ProgramFormModal } from './components/ProgramFormModal';
 import { FundingFormModal } from './components/FundingFormModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { useFilteredPrograms } from './hooks/useFilteredPrograms';
-import { LayoutGrid, Table as TableIcon, AlertCircle } from 'lucide-react';
+import { useAppRoute } from './hooks/useAppRoute';
+import { programPath } from './lib/routes';
+import { LayoutGrid, Table as TableIcon, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function App() {
+  const { route, pathname, navigate } = useAppRoute();
   // Theme state
   const [isDark, setIsDark] = useState<boolean>(() => {
     return localStorage.getItem('gradsearch_theme') === 'dark';
@@ -59,10 +62,8 @@ export default function App() {
       clearStoreCache();
       setPrograms([]);
       setFunding([]);
-      setInspectProgram(null);
       setIsAddProgramOpen(false);
       setFundingModalProgram(null);
-      setCurrentTab('catalog');
       setAuthUser(null);
     } catch (error) {
       setDataError(error instanceof Error ? error.message : 'Could not sign out. Please try again.');
@@ -94,17 +95,18 @@ export default function App() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [funding, setFunding] = useState<FundingOpportunity[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [loadedForUser, setLoadedForUser] = useState<string | null>(null);
+  const isLoadingRecords = isLoadingData || loadedForUser !== authUser?.id;
 
   useEffect(() => {
     if (isAuthLoading) return;
     if (!authUser) {
+      setLoadedForUser(null);
       clearStoreCache();
       setPrograms([]);
       setFunding([]);
-      setInspectProgram(null);
       setIsAddProgramOpen(false);
       setFundingModalProgram(null);
-      setCurrentTab('catalog');
       return;
     }
     let active = true;
@@ -122,11 +124,12 @@ export default function App() {
         if (!active || request !== latestRequest) return;
         setPrograms([]);
         setFunding([]);
-        setInspectProgram(null);
-        setCurrentTab('catalog');
         setDataError(error instanceof Error ? error.message : 'Could not load saved records.');
       } finally {
-        if (active && request === latestRequest) setIsLoadingData(false);
+        if (active && request === latestRequest) {
+          setLoadedForUser(authUser.id);
+          setIsLoadingData(false);
+        }
       }
     };
     void loadData();
@@ -134,8 +137,7 @@ export default function App() {
     return () => { active = false; unsubscribe(); };
   }, [authUser, isAuthLoading, reloadCount]);
 
-  // Tab State: 'catalog' | 'tree' | 'detail'
-  const [currentTab, setCurrentTab] = useState<'catalog' | 'tree' | 'detail'>('catalog');
+  const currentTab = route.view === 'tree' ? 'tree' : route.view === 'detail' ? 'detail' : 'catalog';
   // View mode inside catalog: 'grid' | 'spreadsheet'
   const [viewMode, setViewMode] = useState<'grid' | 'spreadsheet'>('grid');
 
@@ -143,7 +145,7 @@ export default function App() {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
 
   // Active / Inspected Program for the Full Detail Page
-  const [inspectProgram, setInspectProgram] = useState<Program | null>(null);
+  const inspectProgram = route.view === 'detail' && loadedForUser === authUser?.id ? programs.find(program => program.id === route.programId) : undefined;
 
   // Modal States
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
@@ -170,19 +172,25 @@ export default function App() {
     filteredPrograms,
   } = useFilteredPrograms(programs, funding, filters);
 
-  // Keep inspectProgram synced if programs updated
+  // The ID determines the record; replace stale slugs without breaking old links.
   useEffect(() => {
-    if (inspectProgram) {
-      const refreshed = programs.find((p) => p.id === inspectProgram.id);
-      if (refreshed) {
-        setInspectProgram(refreshed);
-      }
+    if (authUser && inspectProgram && pathname !== programPath(inspectProgram)) {
+      navigate(programPath(inspectProgram) + window.location.search + window.location.hash, true);
     }
-  }, [programs]);
+  }, [authUser, inspectProgram, pathname, navigate]);
+
+  useEffect(() => {
+    document.title = inspectProgram ? `${inspectProgram.officialName} | GradQuest` : 'GradQuest';
+  }, [inspectProgram]);
+
+  useEffect(() => {
+    setIsAddProgramOpen(false);
+    setFundingModalProgram(null);
+    setIsRestoreModalOpen(false);
+  }, [pathname]);
 
   const handleOpenDetails = (program: Program) => {
-    setInspectProgram(program);
-    setCurrentTab('detail');
+    navigate(programPath(program));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -199,13 +207,7 @@ export default function App() {
       {/* Top Bar (One-Row Contract) */}
       <TopNav
         currentTab={currentTab}
-        onSelectTab={(tab) => {
-          if (tab === 'catalog' && currentTab === 'detail') {
-            setCurrentTab('catalog');
-          } else {
-            setCurrentTab(tab);
-          }
-        }}
+        onSelectTab={tab => navigate(tab === 'tree' ? '/directory' : '/')}
         onOpenAddModal={() => {
           setEditingProgram(null);
           setIsAddProgramOpen(true);
@@ -222,20 +224,27 @@ export default function App() {
           <p>{dataError}</p>
           <button type="button" className="mt-2 underline" onClick={() => setReloadCount(value => value + 1)}>Try again</button>
         </div>}
-        {isLoadingData && <p role="status" className="text-sm text-slate-500">Loading saved records…</p>}
+        {isLoadingRecords && <p role="status" className="text-sm text-slate-500">Loading saved records…</p>}
+        {(route.view === 'not-found' || (route.view === 'detail' && !isLoadingRecords && !dataError && !inspectProgram)) && (
+          <div className="py-16 text-center space-y-3">
+            <h1 className="text-xl font-semibold text-slate-900 dark:text-white">{route.view === 'detail' ? 'Program not found' : 'Page not found'}</h1>
+            <p className="text-sm text-slate-500">{route.view === 'detail' ? 'This program may have been deleted or is not available to your account.' : 'This address does not match a page.'}</p>
+            <button type="button" onClick={() => navigate('/')} className="text-sm font-medium underline">Back to opportunities</button>
+          </div>
+        )}
         {/* VIEW 1: Dedicated Full Detail Page */}
         {currentTab === 'detail' && inspectProgram && (
           <ProgramDetailPage
             program={inspectProgram}
             fundingList={funding.filter((f) => f.programId === inspectProgram.id)}
-            onBack={() => setCurrentTab('catalog')}
+            onBack={() => navigate('/')}
             onEditProgram={(p) => {
               setEditingProgram(p);
               setIsAddProgramOpen(true);
             }}
             onDeleteProgram={async (id) => {
               await deleteProgram(id);
-              setCurrentTab('catalog');
+              navigate('/', true);
             }}
             onAddFunding={(p) => {
               setFundingModalProgram(p);
@@ -250,7 +259,7 @@ export default function App() {
         )}
 
         {/* VIEW 2: Catalog (Grid or Spreadsheet) */}
-        {currentTab === 'catalog' && (
+        {route.view === 'catalog' && (
           <div className="space-y-4">
             {/* Catalog Page Header */}
             <div className="pb-1">
@@ -273,8 +282,17 @@ export default function App() {
             {/* View Mode Toggle: Grid vs Spreadsheet */}
             <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1">
               <span>
-                Showing <strong className="text-slate-800 dark:text-slate-200">{filteredPrograms.length}</strong> of{' '}
-                {programs.length} saved program{programs.length === 1 ? '' : 's'}
+                {isLoadingData && programs.length === 0 ? (
+                  <span className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-700 dark:text-slate-300" />
+                    Loading saved programs…
+                  </span>
+                ) : (
+                  <>
+                    Showing <strong className="text-slate-800 dark:text-slate-200">{filteredPrograms.length}</strong> of{' '}
+                    {programs.length} saved program{programs.length === 1 ? '' : 's'}
+                  </>
+                )}
               </span>
 
               {/* Clean View Switcher */}
@@ -291,7 +309,7 @@ export default function App() {
                   <LayoutGrid className="w-3.5 h-3.5" />
                   <span className="hidden xs:inline">Grid</span>
                 </button>
-                <div className="w-px h-4 bg-[#E6DFD5] dark:bg-[#334155]" />
+                <div className="w-px h-4 bg-[#E6DFD5] dark:border-[#334155]" />
                 <button
                   onClick={() => setViewMode('spreadsheet')}
                   className={`px-2.5 py-1 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
@@ -307,40 +325,65 @@ export default function App() {
               </div>
             </div>
 
-          {/* Empty Results State */}
-          {filteredPrograms.length === 0 && (
-            <div
-              className="p-8 text-center bg-white dark:bg-[#1E293B] rounded-xl
-                border border-[#E6DFD5] dark:border-[#334155] space-y-3"
-            >
-              <AlertCircle className="w-8 h-8 text-slate-400 mx-auto" />
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                No opportunities match the current filters
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                Try clearing active filters or adding a new graduate program record.
-              </p>
-              <div className="flex items-center justify-center gap-2 pt-1">
-                <button
-                  onClick={() => setFilters(DEFAULT_FILTERS)}
-                  className="px-3 py-1.5 text-xs font-medium bg-[#F4EFE6] dark:bg-[#0F172A]
-                    rounded-lg text-slate-700 dark:text-slate-300 hover:bg-[#E6DFD5]"
-                >
-                  Reset Filters
-                </button>
-                <button
-                  onClick={() => {
-                    setEditingProgram(null);
-                    setIsAddProgramOpen(true);
-                  }}
-                  className="px-3 py-1.5 text-xs font-medium bg-slate-900 dark:bg-white
-                    text-white dark:text-slate-900 rounded-lg"
-                >
-                  Add Program
-                </button>
+            {/* Loading Skeletons on initial load/hard refresh */}
+            {isLoadingData && programs.length === 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="p-5 rounded-xl border border-[#E6DFD5] dark:border-[#334155] bg-white dark:bg-[#1E293B] animate-pulse space-y-3"
+                  >
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="space-y-2 flex-1">
+                        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
+                        <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded w-1/2"></div>
+                      </div>
+                      <div className="h-6 w-16 bg-slate-200 dark:bg-slate-700 rounded-full shrink-0"></div>
+                    </div>
+                    <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded w-full"></div>
+                    <div className="pt-2 flex gap-2">
+                      <div className="h-5 w-20 bg-slate-100 dark:bg-slate-800 rounded"></div>
+                      <div className="h-5 w-24 bg-slate-100 dark:bg-slate-800 rounded"></div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Empty Results State (only after loading completes) */}
+            {!isLoadingData && filteredPrograms.length === 0 && (
+              <div
+                className="p-8 text-center bg-white dark:bg-[#1E293B] rounded-xl
+                  border border-[#E6DFD5] dark:border-[#334155] space-y-3"
+              >
+                <AlertCircle className="w-8 h-8 text-slate-400 mx-auto" />
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  No opportunities match the current filters
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                  Try clearing active filters or adding a new graduate program record.
+                </p>
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  <button
+                    onClick={() => setFilters(DEFAULT_FILTERS)}
+                    className="px-3 py-1.5 text-xs font-medium bg-[#F4EFE6] dark:bg-[#0F172A]
+                      rounded-lg text-slate-700 dark:text-slate-300 hover:bg-[#E6DFD5] cursor-pointer"
+                  >
+                    Reset Filters
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingProgram(null);
+                      setIsAddProgramOpen(true);
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium bg-slate-900 dark:bg-white
+                      text-white dark:text-slate-900 rounded-lg cursor-pointer"
+                  >
+                    Add Program
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Mode A: Clean Grid View */}
             {viewMode === 'grid' && filteredPrograms.length > 0 && (
@@ -384,7 +427,7 @@ export default function App() {
       {isAddProgramOpen && (
         <ProgramFormModal
           initialProgram={editingProgram}
-          existingUniversities={availableUniversities}
+            existingUniversities={programs.flatMap(program => program.universities?.length ? program.universities : program.isJointProgram ? [] : [program.university])}
           existingFields={availableFields}
           onSave={(p) => saveProgram(p)}
           onClose={() => {

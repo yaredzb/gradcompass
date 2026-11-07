@@ -1,4 +1,5 @@
 import React from 'react';
+import { ProgramLink } from './ProgramLink';
 import { ExternalLink, Calendar, ArrowRight, Award } from 'lucide-react';
 import { Program, FundingOpportunity } from '../types';
 import { formatRegionDisplay } from '../utils/regions';
@@ -151,6 +152,14 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
               <span>{program.fields.slice(0, 2).join(', ')}</span>
             </>
           )}
+          {program.proofOfFunds?.required === 'Yes' && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="text-amber-700 dark:text-amber-400 font-medium">
+                Blocked Account Req.{program.proofOfFunds.amount ? ` (${Number(program.proofOfFunds.amount).toLocaleString()} ${program.proofOfFunds.currency || 'EUR'})` : ''}
+              </span>
+            </>
+          )}
         </div>
 
         {/* Funding Summary Pill */}
@@ -209,13 +218,13 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
           </span>
         </div>
 
-        <span
+        <ProgramLink program={program} onNavigate={onOpenDetails}
           className="text-blue-600 dark:text-blue-400 font-medium
             group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5 text-xs"
         >
           Details
           <ArrowRight className="w-3.5 h-3.5" />
-        </span>
+        </ProgramLink>
       </div>
     </article>
   );

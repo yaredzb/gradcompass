@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS public.programs (
     english_proficiency JSONB NOT NULL DEFAULT '{"acceptedTests": []}'::jsonb,
     selection_steps TEXT[] NOT NULL DEFAULT '{}',
     admission_competitiveness JSONB NOT NULL DEFAULT '{}'::jsonb,
+    proof_of_funds JSONB NOT NULL DEFAULT '{"required": "Unclear"}'::jsonb,
     fall_intake JSONB NOT NULL DEFAULT '{"term": "Fall intake", "status": "Unknown"}'::jsonb,
     spring_intake JSONB NOT NULL DEFAULT '{"term": "Spring intake", "status": "Unknown"}'::jsonb,
     information_last_checked TEXT DEFAULT CURRENT_DATE::text,
@@ -69,6 +70,10 @@ CREATE TABLE IF NOT EXISTS public.programs (
         medium_of_instruction IN ('English', 'LocalLanguage', 'Mixed', 'Other', 'Unclear')
     )
 );
+
+-- Additive upgrade: preserve existing institution labels and demo records.
+ALTER TABLE public.programs ADD COLUMN IF NOT EXISTS universities TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE public.programs ADD COLUMN IF NOT EXISTS consortium_name TEXT NOT NULL DEFAULT '';
 
 -- -----------------------------------------------------------------------------
 -- 2. Table: funding_opportunities

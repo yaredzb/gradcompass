@@ -29,8 +29,9 @@ it('preserves the app user and surfaces failed sign-outs', async () => {
 });
 
 it('requires Supabase configuration in production instead of silently enabling local login', async () => {
-  localStorage.clear();
+  localStorage.setItem('gradsearch_supabase_config_v1', JSON.stringify({ url: '', anonKey: '' }));
   vi.stubEnv('PROD', true);
   const auth = await import('./supabase');
+  auth.resetSupabaseClient();
   expect(() => auth.getSupabaseClient()).toThrow('before deploying');
 });

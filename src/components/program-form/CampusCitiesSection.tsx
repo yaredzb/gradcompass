@@ -5,15 +5,13 @@ import { CampusCityCost } from '../../types';
 interface CampusCitiesSectionProps {
   campusCities: CampusCityCost[];
   setCampusCities: (val: CampusCityCost[]) => void;
-  informationLastChecked: string;
-  setInformationLastChecked: (val: string) => void;
+  informationLastChecked?: string;
+  setInformationLastChecked?: (val: string) => void;
 }
 
 export const CampusCitiesSection: React.FC<CampusCitiesSectionProps> = ({
   campusCities,
   setCampusCities,
-  informationLastChecked,
-  setInformationLastChecked,
 }) => {
   const addCityRow = () => {
     setCampusCities([
@@ -174,19 +172,6 @@ export const CampusCitiesSection: React.FC<CampusCitiesSectionProps> = ({
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Information Last Verified */}
-      <div className="pt-2">
-        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-          Information Last Verified Date
-        </label>
-        <input
-          type="date"
-          value={informationLastChecked}
-          onChange={(e) => setInformationLastChecked(e.target.value)}
-          className="px-2.5 py-1.5 text-xs rounded border border-[#E6DFD5] dark:border-[#334155] bg-white dark:bg-[#0F172A] font-mono"
-        />
       </div>
     </div>
   );

@@ -11,8 +11,8 @@ interface AwardNotesSectionProps {
   setCompetitivenessLink: (val: string) => void;
   visaAndWorkNotes: string;
   setVisaAndWorkNotes: (val: string) => void;
-  informationLastChecked: string;
-  setInformationLastChecked: (val: string) => void;
+  informationLastChecked?: string;
+  setInformationLastChecked?: (val: string) => void;
 }
 
 export const AwardNotesSection: React.FC<AwardNotesSectionProps> = ({
@@ -26,8 +26,6 @@ export const AwardNotesSection: React.FC<AwardNotesSectionProps> = ({
   setCompetitivenessLink,
   visaAndWorkNotes,
   setVisaAndWorkNotes,
-  informationLastChecked,
-  setInformationLastChecked,
 }) => {
   return (
     <div className="space-y-4">
@@ -111,20 +109,6 @@ export const AwardNotesSection: React.FC<AwardNotesSectionProps> = ({
           className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border
             border-[#E6DFD5] dark:border-[#334155] bg-white dark:bg-[#0F172A]
             text-slate-900 dark:text-white"
-        />
-      </div>
-
-      {/* Verification Date */}
-      <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-          Information Last Verified Date
-        </label>
-        <input
-          type="date"
-          value={informationLastChecked}
-          onChange={(e) => setInformationLastChecked(e.target.value)}
-          className="px-2.5 py-1.5 text-xs rounded border border-[#E6DFD5]
-            dark:border-[#334155] bg-white dark:bg-[#0F172A] font-mono"
         />
       </div>
     </div>

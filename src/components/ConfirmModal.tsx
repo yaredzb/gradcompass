@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { AlertTriangle, Trash2, HelpCircle, X } from 'lucide-react';
+import { useScrollLock } from '../hooks/useScrollLock';
 
 export interface ConfirmModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onCancel,
   isLoading = false,
 }) => {
+  useScrollLock(isOpen);
   const cancelBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -42,12 +44,10 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     };
 
     document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
 
     return () => {
       clearTimeout(timer);
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
     };
   }, [isOpen, onCancel]);
 

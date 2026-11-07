@@ -1,4 +1,5 @@
 import React from 'react';
+import { ProgramLink } from './ProgramLink';
 import { Award, ChevronRight } from 'lucide-react';
 import { Program, FundingOpportunity } from '../types';
 import { formatRegionDisplay } from '../utils/regions';
@@ -33,6 +34,7 @@ export const SpreadsheetView: React.FC<SpreadsheetViewProps> = ({
             <th className="py-3 px-3 font-semibold min-w-[200px]">Program</th>
             <th className="py-3 px-3 font-semibold whitespace-nowrap">Region / Country</th>
             <th className="py-3 px-3 font-semibold whitespace-nowrap">Route</th>
+            <th className="py-3 px-3 font-semibold whitespace-nowrap">Proof of Funds</th>
             <th className="py-3 px-3 font-semibold whitespace-nowrap">Top Funding Route</th>
             <th className="py-3 px-3 font-semibold whitespace-nowrap">Ethiopian Access</th>
             <th className="py-3 px-3 font-semibold whitespace-nowrap">Application Timeline</th>
@@ -102,9 +104,9 @@ export const SpreadsheetView: React.FC<SpreadsheetViewProps> = ({
 
                 {/* Program */}
                 <td className="py-2.5 px-3">
-                  <div className="font-medium text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400">
+                  <ProgramLink program={p} onNavigate={onOpenDetails} className="font-medium text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400">
                     {p.officialName}
-                  </div>
+                  </ProgramLink>
                   <div className="text-[11px] text-slate-500 truncate max-w-xs">
                     {p.fields.slice(0, 2).join(', ')}
                   </div>
@@ -138,6 +140,24 @@ export const SpreadsheetView: React.FC<SpreadsheetViewProps> = ({
                   <div className="text-[11px] text-slate-500">
                     {p.mediumOfInstruction}
                   </div>
+                </td>
+
+                {/* Proof of Funds / Blocked Account */}
+                <td className="py-2.5 px-3 whitespace-nowrap">
+                  {p.proofOfFunds?.required === 'Yes' ? (
+                    <span className="inline-flex items-center gap-1 font-medium text-amber-700 dark:text-amber-400">
+                      <span>Req.</span>
+                      {p.proofOfFunds.amount ? (
+                        <span className="font-mono text-[11px] text-slate-600 dark:text-slate-400">
+                          ({Number(p.proofOfFunds.amount).toLocaleString()} {p.proofOfFunds.currency || 'EUR'})
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : p.proofOfFunds?.required === 'No' ? (
+                    <span className="text-emerald-700 dark:text-emerald-400 font-medium">Not Req.</span>
+                  ) : (
+                    <span className="text-slate-400 dark:text-slate-500">—</span>
+                  )}
                 </td>
 
                 {/* Funding Route */}

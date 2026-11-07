@@ -18,6 +18,7 @@ export function useFilteredPrograms(
     const set = new Set<string>();
     programs.forEach((p) => {
       if (p.university) set.add(p.university);
+      p.universities?.forEach(name => set.add(name));
     });
     return Array.from(set).sort();
   }, [programs]);
@@ -41,7 +42,7 @@ export function useFilteredPrograms(
         if (filters.searchQuery.trim()) {
           const q = filters.searchQuery.toLowerCase();
           const matchesName = p.officialName.toLowerCase().includes(q);
-          const matchesUni = p.university.toLowerCase().includes(q);
+          const matchesUni = p.university.toLowerCase().includes(q) || p.universities?.some(name => name.toLowerCase().includes(q));
           const matchesCountry = p.countries.some((c) =>
             c.toLowerCase().includes(q)
           );
@@ -78,7 +79,7 @@ export function useFilteredPrograms(
 
         // 4. University Filter
         if (filters.university !== 'ALL') {
-          if (p.university !== filters.university) {
+          if (p.university !== filters.university && !p.universities?.includes(filters.university)) {
             return false;
           }
         }

@@ -43,6 +43,14 @@ describe.each(['combined', 'separate SQL Editor tabs'])('Supabase schema and dur
     expect((await db.query('SELECT user_id FROM public.team_members')).rows).toEqual([{ user_id: owner }]);
   });
 
+  it('supports the additive institution upgrade without changing saved records', async () => {
+    const upgrade = readFileSync(new URL('./upgrades/20261107_program_institutions.sql', import.meta.url), 'utf8');
+    await db.exec("UPDATE public.programs SET universities=ARRAY['Aalto University','KTH'], consortium_name='Nordic partnership' WHERE id='demo-program-1'");
+    await db.exec(upgrade);
+    await db.exec(upgrade);
+    expect((await db.query("SELECT universities,consortium_name FROM public.programs WHERE id='demo-program-1'")).rows[0]).toEqual({ universities: ['Aalto University', 'KTH'], consortium_name: 'Nordic partnership' });
+  });
+
   it('grants approved accounts CRUD access but denies outsiders and anonymous users', async () => {
     await db.exec(`SET ROLE authenticated; SET request.jwt.claim.sub = '${owner}';`);
     try {

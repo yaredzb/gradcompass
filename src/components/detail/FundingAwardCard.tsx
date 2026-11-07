@@ -246,11 +246,6 @@ export const FundingAwardCard: React.FC<FundingAwardCardProps> = ({
                 {fund.visaAndWorkNotes}
               </DetailField>
             )}
-            {fund.informationLastChecked && (
-              <DetailField label="Last verified">
-                {formatDate(fund.informationLastChecked)}
-              </DetailField>
-            )}
           </dl>
           <SourceLink href={competitiveness?.sourceLink}>Award statistics</SourceLink>
         </MoreDetails>
